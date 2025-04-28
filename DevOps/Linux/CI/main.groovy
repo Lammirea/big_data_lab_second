@@ -31,9 +31,7 @@ pipeline {
             steps {
                 script {
                     try {
-                    withCredentials([usernamePassword(credentialsId: 'DOCKERHUB_CREDS', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        sh 'docker login -u $DOCKER_USER -p $DOCKER_PASS'
-                        }
+                        sh 'echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin'
                     } catch (Exception e) {
                         echo "Ошибка при входе в DockerHub: ${e.getMessage()}"
                         currentBuild.result = 'FAILURE'
