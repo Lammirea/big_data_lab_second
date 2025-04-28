@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDS = credentials('lab_big_data_two')
+        DOCKERHUB_CREDS = credentials('big_data_lab_second')
     }
 
     options {
@@ -117,7 +117,7 @@ pipeline {
             steps {
                 script {
                     try {
-                        sh 'docker push derelia/big_data_second_lab:latest'
+                        sh 'docker push derelia/big_data_lab_second:latest'
                     } catch (Exception e) {
                         echo "Ошибка при публикации Docker-образа: ${e.getMessage()}"
                         currentBuild.result = 'FAILURE'
