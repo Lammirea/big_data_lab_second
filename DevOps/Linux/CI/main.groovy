@@ -1,5 +1,11 @@
 pipeline {
-    agent any
+    agent
+    {     
+        docker {
+        image 'docker:20.10.17'               // official Docker image
+        args  '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
 
     environment {
         DOCKER_CREDS = credentials('big_data_lab_second')
