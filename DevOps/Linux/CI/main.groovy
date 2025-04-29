@@ -47,14 +47,16 @@ pipeline {
         stage('Login') {
             steps {
                 script {
-                    try {
-                        sh 'echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin'
-                    } catch (Exception e) {
-                        echo "Ошибка при входе в DockerHub: ${e.getMessage()}"
-                        currentBuild.result = 'FAILURE'
-                        error("Не удалось войти в DockerHub")
-                    }
+                    withCredentials([usernamePassword(credentialsId: 'big_data_lab_second', usernameVariable: 'DOCKER_CREDS_USR', passwordVariable: 'DOCKER_CREDS_PSW')]) {
+                try {
+                    sh 'echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin'
+                } catch (Exception e) {
+                    echo "Ошибка при входе в DockerHub: ${e.getMessage()}"
+                    currentBuild.result = 'FAILURE'
+                    error("Не удалось войти в DockerHub")
                 }
+            }
+        }
             }
         }
 
