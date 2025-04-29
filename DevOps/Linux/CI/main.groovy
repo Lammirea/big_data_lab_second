@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'docker' }
+    agent { label 'Docker' }
 
     environment {
         DOCKER_CREDS = credentials('big_data_lab_second')
