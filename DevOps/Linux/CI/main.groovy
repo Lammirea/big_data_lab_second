@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDS = credentials('big_data_lab_second')
+        DOCKERHUB_CREDS = credentials('big_data_second')
     }
 
     options {
