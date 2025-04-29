@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'Docker' }
+    agent any
 
     environment {
         DOCKER_CREDS = credentials('big_data_lab_second')
@@ -24,6 +24,23 @@ pipeline {
                 }
                 sh 'cd big_data_lab_second && git lfs pull && ls -lash'
                 sh 'whoami'
+            }
+        }
+
+        stage('Diagnostics') {
+            steps {
+                script {
+                    echo 'Проверка наличия Docker и переменных окружения...'
+                    
+                    // Проверим, установлен ли docker
+                    sh 'which docker || echo "Docker не найден"'
+
+                    // Проверим версию docker (если найден)
+                    sh 'docker --version || echo "Невозможно получить версию Docker"'
+
+                    // Проверим, подставилась ли переменная логина (не пароль!)
+                    sh 'echo "DOCKER_CREDS_USR: $DOCKER_CREDS_USR"'
+                }
             }
         }
 
