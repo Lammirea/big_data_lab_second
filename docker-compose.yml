@@ -31,9 +31,10 @@ services:
         - "8081:8080"  # Порт 8080 уже занят приложением
         - "5000:5000"
       volumes:
-        - jenkins_data:/var/jenkins_home
+        - jenkins_data:/var/jenkins_home \
         # Раскомментируйте для доступа к коду проекта:
         # - /var/run/docker.sock:/var/run/docker.sock
+        - /var/run/docker.sock:/var/run/docker.sock
       environment:
         TZ: Europe/Moscow
       restart: unless-stopped

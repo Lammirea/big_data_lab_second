@@ -11,6 +11,16 @@ pipeline {
     }
 
     stages {
+        stage('Check Docker') {
+            steps {
+                script {
+                    def dockerExists = sh(script: 'command -v docker', returnStatus: true) == 0
+                    if (!dockerExists) {
+                        error("Docker не установлен на агенте!")
+                    }
+                }
+            }
+        }
         stage('Checkout repo dir') {
             steps {
                 script {
