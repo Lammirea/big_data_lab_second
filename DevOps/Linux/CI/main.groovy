@@ -3,10 +3,6 @@ pipeline {
 
     environment {
         DOCKER_CREDS = credentials('big_data_lab_second')
-        REDIS_HOST     = "${env.REDIS_HOST}"
-        REDIS_PORT     = "${env.REDIS_PORT}"
-        REDIS_PASSWORD = "${env.REDIS_PASSWORD}"
-        REDIS_DB       = "${env.REDIS_DB}"
     }
 
     options {
@@ -82,6 +78,7 @@ pipeline {
             steps {
                 script {
                     try {
+                        sh 'echo "REDIS_HOST=$REDIS_HOST  REDIS_PORT=$REDIS_PORT  REDIS_DB=$REDIS_DB"'
                         sh 'cd big_data_lab_second && docker compose build'
                     } catch (Exception e) {
                         echo "Ошибка при сборке Docker-контейнера: ${e.getMessage()}"
