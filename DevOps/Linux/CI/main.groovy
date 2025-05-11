@@ -99,28 +99,26 @@ pipeline {
         stage('Wait for Redis to be ready') {
             steps {
                 script {
-                    try {
-                        sh '''
-                            cd big_data_lab_second
-                            containerId=$(docker ps -qf "name=^redis-1")
-                            if [[ -z "$containerId" ]]; then
-                                echo "Redis container not found"
-                                exit 1
-                            fi
-                            until docker exec $containerId redis-cli ping; do
-                                echo "Waiting for Redis..."
-                                sleep 5
-                            done
-                            echo "Redis is ready"
-                        '''
-                    } catch (Exception e) {
-                        echo "Ошибка при ожидании Redis: ${e.getMessage()}"
-                        currentBuild.result = 'FAILURE'
-                        error("Не удалось дождаться готовности Redis")
-                    }
+                sh '''
+                    cd big_data_lab_second
+
+                    containerId=$(docker compose ps -q redis)
+                    if [ -z "$containerId" ]; then
+                    echo "Redis container not found"
+                    exit 1
+                    fi
+
+                    # loop until we get a PONG response
+                    until docker exec "$containerId" redis-cli ping | grep -q PONG; do
+                    echo "Waiting for Redis…"
+                    sleep 5
+                    done
+
+                    echo "Redis is ready"
+                '''
                 }
             }
-        }
+            }
 
         stage('Checkout container logs') {
             steps {
