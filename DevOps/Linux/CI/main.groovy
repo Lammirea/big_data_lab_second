@@ -3,6 +3,10 @@ pipeline {
 
     environment {
         DOCKER_CREDS = credentials('big_data_lab_second')
+        REDIS_HOST     = "${env.REDIS_HOST}"
+        REDIS_PORT     = "${env.REDIS_PORT}"
+        REDIS_PASSWORD = "${env.REDIS_PASSWORD}"
+        REDIS_DB       = "${env.REDIS_DB}"
     }
 
     options {
