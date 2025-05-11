@@ -124,11 +124,15 @@ pipeline {
             steps {
                 dir("big_data_lab_second") {
                     sh '''
-                        containerId=$(docker ps -qf "name=^app-1")
-                        if [[ -z "$containerId" ]]; then
-                            echo "No container running"
+                        # ask Compose for the running container ID of the "app" service
+                        containerId=$(docker compose ps -q app)
+
+                        # POSIX-compatible test
+                        if [ -z "$containerId" ]; then
+                        echo "No 'app' container running"
                         else
-                            docker logs --tail 1000 -f "$containerId"
+                        echo "Following logs for container $containerId"
+                        docker logs --tail 1000 -f "$containerId"
                         fi
                     '''
                 }
