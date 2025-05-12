@@ -165,17 +165,22 @@ pipeline {
 
         stage('Run tests') {
             steps {
+                dir('big_data_lab_second') {
                 script {
-                    try {
-                        sh 'cd big_data_lab_second && python -m unittest discover -s src/unit_tests/'
-                    } catch (Exception e) {
-                        echo "Ошибка при запуске тестов: ${e.getMessage()}"
-                        currentBuild.result = 'FAILURE'
-                        error("Не удалось запустить тесты")
-                    }
+                    sh '''
+                    container=$(docker compose ps -q app)
+                    if [ -z "$container" ]; then
+                        echo "App container not found"
+                        exit 1
+                    fi
+                    
+                    docker exec "$container" python -m unittest discover -s src/unit_tests
+                    '''
+                }
                 }
             }
         }
+
     }
 
     post {
