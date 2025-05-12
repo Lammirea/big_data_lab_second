@@ -5,6 +5,7 @@ pipeline {
         REDIS_HOST = 'redis_db'
         REDIS_PORT = '6379'
         REDIS_DB = '0'
+        REDIS_PASSWORD = credentials('REDIS_PASSWORD')
         DOCKER_CREDS = credentials('big_data_lab_second')
     }
 
