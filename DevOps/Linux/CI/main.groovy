@@ -10,15 +10,13 @@ pipeline {
         skipDefaultCheckout(true)
     }
 
-    dir('big_data_lab_second') {
-        // build with .env
-        sh 'docker compose --env-file .env build'
-        // bring up with .env
-        sh 'docker compose --env-file .env up -d'
-    }
-
-
     stages {
+        stage("Env Variables") {
+            steps {
+                sh "printenv"
+            }
+        }
+        
         stage('Setup Docker') {
             steps {
                 script {
