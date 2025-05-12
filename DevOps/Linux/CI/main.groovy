@@ -2,6 +2,9 @@ pipeline {
     agent any
 
     environment {
+        REDIS_HOST = redis_db
+        REDIS_PORT = 6379
+        REDIS_DB = 0
         DOCKER_CREDS = credentials('big_data_lab_second')
     }
 
@@ -11,12 +14,6 @@ pipeline {
     }
 
     stages {
-        stage("Env Variables") {
-            steps {
-                sh "printenv"
-            }
-        }
-        
         stage('Setup Docker') {
             steps {
                 script {
