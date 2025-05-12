@@ -10,6 +10,14 @@ pipeline {
         skipDefaultCheckout(true)
     }
 
+    dir('big_data_lab_second') {
+        // build with .env
+        sh 'docker compose --env-file .env build'
+        // bring up with .env
+        sh 'docker compose --env-file .env up -d'
+    }
+
+
     stages {
         stage('Setup Docker') {
             steps {
@@ -21,20 +29,6 @@ pipeline {
                       sh get-docker.sh
                     fi
                     '''
-                }
-            }
-        }
-
-        stage('Load .env') {
-            steps {
-                dir('big_data_lab_second') {
-                // POSIX-compatible export of every KEY=VALUE in .env
-                sh '''
-                    set -o allexport
-                    [ -f .env ] || { echo ".env missing"; exit 1; }
-                    grep -v '^\\s*#' .env | grep -v '^\\s*$' | xargs
-                    set +o allexport
-                '''
                 }
             }
         }
