@@ -25,6 +25,20 @@ pipeline {
             }
         }
 
+        stage('Load .env') {
+            steps {
+                dir('big_data_lab_second') {
+                // POSIX-compatible export of every KEY=VALUE in .env
+                sh '''
+                    set -o allexport
+                    [ -f .env ] || { echo ".env missing"; exit 1; }
+                    grep -v '^\\s*#' .env | grep -v '^\\s*$' | xargs
+                    set +o allexport
+                '''
+                }
+            }
+        }
+
         stage('Checkout repo dir') {
             steps {
                 script {
@@ -173,7 +187,7 @@ pipeline {
                         echo "App container not found"
                         exit 1
                     fi
-                    
+
                     docker exec "$container" python -m unittest discover -s src/unit_tests
                     '''
                 }
