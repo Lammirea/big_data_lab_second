@@ -106,23 +106,39 @@ pipeline {
                 sh '''
                     cd big_data_lab_second
 
-                    containerId=$(docker compose ps -q redis)
-                    if [ -z "$containerId" ]; then
-                    echo "Redis container not found"
+                    # get the redis service container (by service name, not guessing)
+                    container=$(docker compose ps -q redis)
+                    if [ -z "$container" ]; then
+                    echo "ERROR: Redis container not found"
                     exit 1
                     fi
 
-                    # loop until we get a PONG response
-                    until docker exec "$containerId" redis-cli ping | grep -q PONG; do
-                    echo "Waiting for Redis…"
+                    echo "Found Redis container: $container"
+
+                    # try up to 12 times (1 minute total) before giving up
+                    attempt=0
+                    max_attempts=12
+                    until [ "$attempt" -ge "$max_attempts" ]; do
+                    attempt=$((attempt + 1))
+                    # capture the raw output (or error)
+                    response=$(docker exec "$container" redis-cli ping 2>&1) || true
+                    echo "Attempt #$attempt — redis-cli ping → '$response'"
+                    if [ "$response" = "PONG" ]; then
+                        echo "✅ Redis is ready!"
+                        break
+                    fi
                     sleep 5
                     done
 
-                    echo "Redis is ready"
+                    if [ "$response" != "PONG" ]; then
+                    echo "❌ Redis never responded with PONG after $max_attempts attempts"
+                    exit 1
+                    fi
                 '''
                 }
             }
-            }
+        }
+
 
         stage('Checkout container logs') {
             steps {
