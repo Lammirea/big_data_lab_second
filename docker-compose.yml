@@ -19,7 +19,7 @@ services:
       - "${REDIS_PORT:-6379}:${REDIS_PORT:-6379}"
     volumes:
       - redis_data:/data
-    environment:  # Исправлено форматирование
+    environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     command: redis-server --requirepass "${REDIS_PASSWORD}"
 

@@ -100,41 +100,20 @@ pipeline {
             }
         }
 
-        stage('Wait for Redis to be ready') {
+        stage('Wait for Redis') {
             steps {
-                script {
-                sh '''
-                    cd big_data_lab_second
-
-                    # get the redis service container (by service name, not guessing)
-                    container=$(docker compose ps -q redis)
-                    if [ -z "$container" ]; then
-                    echo "ERROR: Redis container not found"
-                    exit 1
-                    fi
-
-                    echo "Found Redis container: $container"
-
-                    # try up to 12 times (1 minute total) before giving up
-                    attempt=0
-                    max_attempts=12
-                    until [ "$attempt" -ge "$max_attempts" ]; do
-                    attempt=$((attempt + 1))
-                    # capture the raw output (or error)
-                    response=$(docker exec "$container" redis-cli ping 2>&1) || true
-                    echo "Attempt #$attempt — redis-cli ping → '$response'"
-                    if [ "$response" = "PONG" ]; then
-                        echo "✅ Redis is ready!"
-                        break
-                    fi
-                    sleep 5
+                dir('big_data_lab_second') {
+                    sh '''
+                    svc=redis
+                    cid=$(docker compose ps -q $svc)
+                    [ -n "$cid" ] || { echo "Redis service not found"; exit 1; }
+                    for i in {1..12}; do
+                      res=$(docker exec "$cid" redis-cli -a "$REDIS_PASSWORD" ping || true)
+                      if [ "$res" = "PONG" ]; then echo 'Redis ready'; exit 0; fi
+                      sleep 5
                     done
-
-                    if [ "$response" != "PONG" ]; then
-                    echo "❌ Redis never responded with PONG after $max_attempts attempts"
-                    exit 1
-                    fi
-                '''
+                    echo 'Redis did not respond'; exit 1
+                    '''
                 }
             }
         }
@@ -169,6 +148,14 @@ pipeline {
             }
         }
 
+        stage('Run Tests') {
+            steps {
+                dir('big_data_lab_second') {
+                    sh 'docker exec -e REDIS_HOST=$REDIS_HOST -e REDIS_PORT=$REDIS_PORT -e REDIS_DB=$REDIS_DB -e REDIS_PASSWORD=$REDIS_PASSWORD $(docker compose ps -q app) \"python -m unittest discover -s src/unit_tests\"'
+                }
+            }
+        }
+
         stage('Push') {
             steps {
                 script {
@@ -179,24 +166,6 @@ pipeline {
                         currentBuild.result = 'FAILURE'
                         error("Не удалось опубликовать Docker-образ")
                     }
-                }
-            }
-        }
-
-        stage('Run tests') {
-            steps {
-                dir('big_data_lab_second') {
-                script {
-                    sh '''
-                    container=$(docker compose ps -q app)
-                    if [ -z "$container" ]; then
-                        echo "App container not found"
-                        exit 1
-                    fi
-
-                    docker exec "$container" python -m unittest discover -s src/unit_tests
-                    '''
-                }
                 }
             }
         }
