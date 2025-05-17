@@ -166,7 +166,7 @@ class Predictor:
                 predictions = classifier.predict(self.X_test_scaled)
                 redis_host = os.getenv('REDIS_HOST', 'localhost')
                 redis_port = int(os.getenv('REDIS_PORT', 6379))
-                redis_password = os.getenv('REDIS_PASSWORD', None)
+                redis_password = os.getenv('REDIS_PASSWORD', 'sugar')
                 redis_db = int(os.getenv('REDIS_DB', 0))
                 # Подключение к Redis
                 conn = redis.Redis(
