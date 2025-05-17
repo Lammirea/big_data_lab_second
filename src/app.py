@@ -279,30 +279,30 @@ def predict_model_func(mode: str, file_contents: bytes = None):
 
 redis_client: redis.Redis = None
 
-@app.lifespan("startup")
-def startup_event():
-    global redis_client
-    redis_client = redis.Redis(
-        host=os.getenv("REDIS_HOST", "localhost"),
-        port=int(os.getenv("REDIS_PORT", 6379)),
-        password=os.getenv("REDIS_PASSWORD", 'sugar'),
-        db=int(os.getenv("REDIS_DB", 0)),
-        decode_responses=True
-    )
-    # Опционально — проверка связи
-    try:
-        redis_client.ping()
-        print("✅ Connected to Redis")
-    except redis.RedisError as e:
-        print(f"❌ Cannot connect to Redis: {e}")
+# @app.lifespan("startup")
+# def startup_event():
+#     global redis_client
+#     redis_client = redis.Redis(
+#         host=os.getenv("REDIS_HOST", "localhost"),
+#         port=int(os.getenv("REDIS_PORT", 6379)),
+#         password=os.getenv("REDIS_PASSWORD", 'sugar'),
+#         db=int(os.getenv("REDIS_DB", 0)),
+#         decode_responses=True
+#     )
+#     # Опционально — проверка связи
+#     try:
+#         redis_client.ping()
+#         print("✅ Connected to Redis")
+#     except redis.RedisError as e:
+#         print(f"❌ Cannot connect to Redis: {e}")
 
-@app.lifespan("shutdown")
-def shutdown_event():
-    # Для redis-py нет явного close(), но если используете ConnectionPool:
-    try:
-        redis_client.connection_pool.disconnect()
-    except:
-        pass
+# @app.lifespan("shutdown")
+# def shutdown_event():
+#     # Для redis-py нет явного close(), но если используете ConnectionPool:
+#     try:
+#         redis_client.connection_pool.disconnect()
+#     except:
+#         pass
 
 @app.post("/train/")
 async def train_model(
