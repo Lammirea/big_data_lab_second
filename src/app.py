@@ -13,7 +13,7 @@ import traceback
 import pandas as pd
 from sklearn.impute import SimpleImputer
 import numpy as np
-import sys
+import json
 import redis
 import uvicorn
 
@@ -249,7 +249,7 @@ def predict_model_func(mode: str, file_contents: bytes = None):
             # Подключение к Redis
             redis_host = os.getenv('REDIS_HOST', 'localhost')
             redis_port = int(os.getenv('REDIS_PORT', 6379))
-            redis_password = os.getenv('REDIS_PASSWORD', None)
+            redis_password = os.getenv('REDIS_PASSWORD', 'sugar')
             redis_db = int(os.getenv('REDIS_DB', 0))
             conn = redis.Redis(
                 host=redis_host,
@@ -277,6 +277,33 @@ def predict_model_func(mode: str, file_contents: bytes = None):
     else:
         raise HTTPException(status_code=400, detail="Неверный режим. Используйте 'smoke', 'upload' или 'db'.")
 
+redis_client: redis.Redis = None
+
+@app.lifespan("startup")
+def startup_event():
+    global redis_client
+    redis_client = redis.Redis(
+        host=os.getenv("REDIS_HOST", "localhost"),
+        port=int(os.getenv("REDIS_PORT", 6379)),
+        password=os.getenv("REDIS_PASSWORD", 'sugar'),
+        db=int(os.getenv("REDIS_DB", 0)),
+        decode_responses=True
+    )
+    # Опционально — проверка связи
+    try:
+        redis_client.ping()
+        print("✅ Connected to Redis")
+    except redis.RedisError as e:
+        print(f"❌ Cannot connect to Redis: {e}")
+
+@app.lifespan("shutdown")
+def shutdown_event():
+    # Для redis-py нет явного close(), но если используете ConnectionPool:
+    try:
+        redis_client.connection_pool.disconnect()
+    except:
+        pass
+
 @app.post("/train/")
 async def train_model(
     use_config: bool = True,
@@ -288,6 +315,13 @@ async def train_model(
 
 @app.post("/predict/")
 async def predict_model(mode: str = "smoke", file: UploadFile = None):
+    cache_key = f"predict:{mode}"
+    # Попытаться получить из Redis
+    if redis_client.exists(cache_key):
+        result = redis_client.get(cache_key)
+        # Если сохранены сериализованные данные (JSON или pickle), десериализуйте
+        return {"from_cache": True, **json.loads(result)}
+    
     if mode == "upload":
         if file is None:
             raise HTTPException(status_code=400, detail="Файл не предоставлен для режима 'upload'")
