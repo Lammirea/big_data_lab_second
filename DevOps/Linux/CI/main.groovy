@@ -155,7 +155,7 @@ pipeline {
                       -e REDIS_PORT="$REDIS_PORT" \
                       -e REDIS_DB="$REDIS_DB" \
                       -e REDIS_PASSWORD="$REDIS_PASSWORD" \
-                      "$cid" python -m unittest discover -s src/unit_tests
+                      "$containerId" python -m unittest discover -s src/unit_tests
                     '''
                 }
             }
