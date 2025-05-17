@@ -144,8 +144,8 @@ pipeline {
                 dir('big_data_lab_second') {
                     sh '''
                     # Получаем ID контейнера приложения
-                    cid=$(docker compose ps -q app)
-                    if [ -z "$cid" ]; then
+                    containerId=$(docker compose ps -q app)
+                    if [ -z "$containerId" ]; then
                       echo "App container not found";
                       exit 1;
                     fi
