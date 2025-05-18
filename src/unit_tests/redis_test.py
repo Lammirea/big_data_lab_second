@@ -17,6 +17,17 @@ class TestRedisIntegration(unittest.TestCase):
     def test_redis_connection(self):
         self.assertTrue(self.redis_client.ping())
 
-    def test_data_persistence(self):
-        self.redis_client.set("test_key", "test_value")
-        self.assertEqual(self.redis_client.get("test_key"), "test_value")
+def test_data_persistence(self):
+    """Проверка записи и чтения данных из Redis."""
+    key = 'test_key'
+    val = 'test_value'
+    # Очистка перед тестом
+    self.redis_client.delete(key)
+    # Запись
+    self.redis_client.set(key, val)
+    # Чтение
+    result = self.redis_client.get(key)
+    self.assertEqual(result, val)
+
+if __name__ == '__main__':
+    unittest.main()
