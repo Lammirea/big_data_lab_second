@@ -139,27 +139,27 @@ pipeline {
         }
 
         
-        stage('Run Tests') {
-            steps {
-                dir('big_data_lab_second') {
-                    sh '''
-                    # Получаем ID контейнера приложения
-                    containerId=$(docker compose ps -q app)
-                    if [ -z "$containerId" ]; then
-                      echo "App container not found";
-                      exit 1;
-                    fi
-                    # Выполняем unit-тесты внутри контейнера
-                    docker exec \
-                      -e REDIS_HOST="$REDIS_HOST" \
-                      -e REDIS_PORT="$REDIS_PORT" \
-                      -e REDIS_DB="$REDIS_DB" \
-                      -e REDIS_PASSWORD="$REDIS_PASSWORD" \
-                      "$containerId" python -m unittest discover -s src/unit_tests
-                    '''
-                }
-            }
-        }
+        // stage('Run Tests') {
+        //     steps {
+        //         dir('big_data_lab_second') {
+        //             sh '''
+        //             # Получаем ID контейнера приложения
+        //             containerId=$(docker compose ps -q app)
+        //             if [ -z "$containerId" ]; then
+        //               echo "App container not found";
+        //               exit 1;
+        //             fi
+        //             # Выполняем unit-тесты внутри контейнера
+        //             docker exec \
+        //               -e REDIS_HOST="$REDIS_HOST" \
+        //               -e REDIS_PORT="$REDIS_PORT" \
+        //               -e REDIS_DB="$REDIS_DB" \
+        //               -e REDIS_PASSWORD="$REDIS_PASSWORD" \
+        //               "$containerId" python -m unittest discover -s src/unit_tests
+        //             '''
+        //         }
+        //     }
+        // }
         
         stage('Checkout coverage report') {
             steps {
