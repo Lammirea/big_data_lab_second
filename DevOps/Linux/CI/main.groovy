@@ -118,6 +118,28 @@ pipeline {
             }
         }
 
+        stage('Run Unit Tests') {
+            steps {
+                dir('big_data_lab_second') {
+                    script {
+                        echo 'Запуск unit тестов из папки unit_tests'
+                        try {
+                            sh '''
+                            containerId=$(docker compose ps -q app)
+                            if [ -z "$containerId" ]; then
+                            echo "App container is not running"; exit 1
+                            fi
+                            docker exec "$containerId" pytest unit_tests --maxfail=1 --disable-warnings -q
+                            '''
+                        } catch (Exception e) {
+                            echo "Unit tests failed: ${e.getMessage()}"
+                            currentBuild.result = 'FAILURE'
+                            error("Unit tests execution error")
+                        }
+                    }
+                }
+            }
+        }
 
         stage('Checkout container logs') {
             steps {
@@ -138,29 +160,7 @@ pipeline {
             }
         }
 
-        
-        // stage('Run Tests') {
-        //     steps {
-        //         dir('big_data_lab_second') {
-        //             sh '''
-        //             # Получаем ID контейнера приложения
-        //             containerId=$(docker compose ps -q app)
-        //             if [ -z "$containerId" ]; then
-        //               echo "App container not found";
-        //               exit 1;
-        //             fi
-        //             # Выполняем unit-тесты внутри контейнера
-        //             docker exec \
-        //               -e REDIS_HOST="$REDIS_HOST" \
-        //               -e REDIS_PORT="$REDIS_PORT" \
-        //               -e REDIS_DB="$REDIS_DB" \
-        //               -e REDIS_PASSWORD="$REDIS_PASSWORD" \
-        //               "$containerId" python -m unittest discover -s src/unit_tests
-        //             '''
-        //         }
-        //     }
-        // }
-        
+               
         stage('Checkout coverage report') {
             steps {
                 dir("big_data_lab_second") {
