@@ -1,9 +1,18 @@
 import redis
 import unittest
+import os
 
 class TestRedisIntegration(unittest.TestCase):
     def setUp(self):
-        self.redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
+        self.redis_host = os.getenv('REDIS_HOST', 'localhost')
+        self.redis_port = int(os.getenv('REDIS_PORT', 6379))
+        self.redis_password = os.getenv('REDIS_PASSWORD', 'sugar')
+        self.redis_db = int(os.getenv('REDIS_DB', 0))
+        self.redis_client = redis.Redis(host=self.redis_host,
+                    port=self.redis_port,
+                    password=self.redis_password,
+                    db=self.redis_db,
+                    decode_responses=True)
 
     def test_redis_connection(self):
         self.assertTrue(self.redis_client.ping())
