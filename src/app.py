@@ -17,6 +17,16 @@ import json
 import redis
 import uvicorn
 
+redis_host = os.getenv('REDIS_HOST')
+redis_port = int(os.getenv('REDIS_PORT'))
+redis_password = os.getenv('REDIS_PASSWORD')
+redis_db = int(os.getenv('REDIS_DB'))
+redis_client = redis.Redis(
+    host=redis_host,
+    port=redis_port,
+    password=redis_password,
+    db=redis_db
+)
 
 SHOW_LOG = True
 
@@ -189,8 +199,7 @@ def predict_model_func(mode: str, file_contents: bytes = None):
     config = configparser.ConfigParser()
     config_path = os.path.join(current_dir, '..', "config.ini")
     config.read(config_path, encoding="utf-8")
-
-    # Загрузка модели и предобработчика
+        # Загрузка модели и предобработчика
     try:
         model_path = config["DECISION_TREE"]["path"]
         with open(model_path, "rb") as f:
@@ -216,6 +225,12 @@ def predict_model_func(mode: str, file_contents: bytes = None):
             X_test_raw, y_test = preprocess_data(test_df)
             X_test_scaled = pipeline.transform(X_test_raw[feature_columns])
             score = classifier.score(X_test_scaled, y_test)
+
+            redis_client.set(f"predict:{mode}", json.dumps({
+            "mode": mode,
+            "test_score": score
+            }))
+           
         except Exception:
             log.error(traceback.format_exc())
             raise HTTPException(status_code=500, detail="Ошибка тестового прогона")
@@ -231,53 +246,20 @@ def predict_model_func(mode: str, file_contents: bytes = None):
             X_upload_raw = uploaded_df[feature_columns]  # Предполагается, что файл содержит те же признаки
             X_upload_scaled = pipeline.transform(X_upload_raw)
             preds = classifier.predict(X_upload_scaled)
+
+            redis_client.set(f"predict:{mode}", json.dumps({
+            "mode": mode,
+            "predictions": preds.tolist()
+            }))
+
         except Exception:
             log.error(traceback.format_exc())
             raise HTTPException(status_code=500, detail="Ошибка обработки загруженного файла")
         return {"mode": "upload", "predictions": preds.tolist()}
 
-    elif mode == "db":
-        # Режим для сохранения предсказаний в Redis
-        try:
-            # Загрузка тестовых данных
-            test_path = os.path.normpath(os.path.join(project_root, config["DATA"]["test_file"]))
-            test_df = pd.read_csv(test_path, encoding='latin1', sep=",")
-            X_test_raw, _ = preprocess_data(test_df)  # y_test не нужен для предсказаний
-            X_test_scaled = pipeline.transform(X_test_raw[feature_columns])
-            predictions = classifier.predict(X_test_scaled)
-
-            # Подключение к Redis
-            redis_host = os.getenv('REDIS_HOST', 'localhost')
-            redis_port = int(os.getenv('REDIS_PORT', 6379))
-            redis_password = os.getenv('REDIS_PASSWORD', 'sugar')
-            redis_db = int(os.getenv('REDIS_DB', 0))
-            conn = redis.Redis(
-                host=redis_host,
-                port=redis_port,
-                password=redis_password,
-                db=redis_db
-            )
-
-            # Очистка предыдущих данных в ключе 'predictions'
-            conn.delete('predictions')
-
-            # Сохранение предсказаний в Redis как список
-            for i, pred in enumerate(predictions):
-                conn.rpush('predictions', int(pred))
-
-            # Получение предсказаний из Redis для проверки (опционально)
-            predictions_list = conn.lrange('predictions', 0, -1)
-            log.info(f"Предсказания сохранены в Redis: {[int(pred.decode('utf-8')) for pred in predictions_list]}")
-
-            return {"mode": "db", "predictions_saved": True}
-        except Exception:
-            log.error(traceback.format_exc())
-            raise HTTPException(status_code=500, detail="Ошибка при работе с базой данных Redis")
 
     else:
-        raise HTTPException(status_code=400, detail="Неверный режим. Используйте 'smoke', 'upload' или 'db'.")
-
-redis_client: redis.Redis = None
+        raise HTTPException(status_code=400, detail="Неверный режим. Используйте 'smoke' или 'upload'.")
 
 # @app.lifespan("startup")
 # def startup_event():
