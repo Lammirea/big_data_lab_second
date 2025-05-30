@@ -3,7 +3,7 @@ import os
 import unittest
 import pandas as pd
 import sys
-
+import redis
 # Добавляем путь для импорта модуля train, где определён класс MultiModel
 sys.path.insert(1, os.path.join(os.getcwd(), "src"))
 
