@@ -121,28 +121,26 @@ pipeline {
         stage('Run Unit Tests') {
             steps {
                 dir('big_data_lab_second') {
-                    echo 'Запуск unit-тестов и сбор результатов в results.xml'
-                    sh '''
-                        containerId=$(docker compose ps -q app)
-                        [ -n "$containerId" ] || { echo "App container is not running"; exit 1; }
-                        docker exec "$containerId" \
-                            pytest src/unit_tests \
-                                   --maxfail=1 \
-                                   --disable-warnings \
-                                   -q \
-                                   --junitxml=/tmp/results.xml
-                        docker cp "$containerId":/tmp/results.xml "${WORKSPACE}/big_data_lab_second/results.xml"
-                    '''
-                }
-            }
-            post {
-                always {
-                    // Подхватим xml-отчет и дадим Jenkins показать фейлы
-                    junit allowEmptyResults: false, testResults: 'big_data_lab_second/results.xml'
+                    script {
+                        echo 'Запуск unit тестов из папки unit_tests'
+                        try {
+                            sh '''
+                            containerId=$(docker compose ps -q app)
+                            if [ -z "$containerId" ]; then
+                            echo "App container is not running"; exit 1
+                            fi
+                            docker exec "$containerId" unittest src/unit_tests --maxfail=1 --disable-warnings -q
+                            '''
+                        } catch (Exception e) {
+                            echo "Unit tests failed: ${e.getMessage()}"
+                            currentBuild.result = 'FAILURE'
+                            error("Unit tests execution error")
+                        }
+                    }
                 }
             }
         }
-        
+
         stage('Checkout container logs') {
             steps {
                 dir("big_data_lab_second") {
