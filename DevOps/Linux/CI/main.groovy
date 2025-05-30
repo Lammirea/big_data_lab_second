@@ -130,17 +130,17 @@ pipeline {
                                    --maxfail=1 \
                                    --disable-warnings \
                                    -q \
-                                   --junitxml=/workspace/results.xml
+                                   --junitxml=/tmp/results.xml
+                        docker cp "$containerId":/tmp/results.xml "${WORKSPACE}/big_data_lab_second/results.xml"
                     '''
                 }
             }
             post {
                 always {
                     // Подхватим xml-отчет и дадим Jenkins показать фейлы
-                    junit allowEmptyResults: false, testResults: '**/results.xml'
+                    junit allowEmptyResults: false, testResults: 'big_data_lab_second/results.xml'
                 }
             }
-        }
 
         stage('Checkout container logs') {
             steps {
