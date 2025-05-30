@@ -141,7 +141,8 @@ pipeline {
                     junit allowEmptyResults: false, testResults: 'big_data_lab_second/results.xml'
                 }
             }
-
+        }
+        
         stage('Checkout container logs') {
             steps {
                 dir("big_data_lab_second") {
