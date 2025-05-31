@@ -50,7 +50,7 @@ class TestTrainModels(unittest.TestCase):
     def test_predict_smoke(self):
         """Тест предсказания в режиме 'smoke' для логистической регрессии."""
         # Обучаем модель (если еще не обучена)
-        self.model.log_reg(use_config=False, predict=False)
+        self.model.log_reg(use_config=False, solver="lbfgs", max_iter=50, predict=False)
         result = self.model.predict("log_reg", "smoke")
         self.assertIn("test_score", result)
         self.assertGreaterEqual(result["test_score"], 0.0)
