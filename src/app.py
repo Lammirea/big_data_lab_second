@@ -309,10 +309,10 @@ async def predict_model(mode: str = "smoke", file: UploadFile = None):
             raise HTTPException(status_code=400, detail="Файл не предоставлен для режима 'upload'")
         file_contents = await file.read()
         return predict_model_func(mode, file_contents)
-    elif mode in ["smoke", "db"]:
+    elif mode in ["smoke"]:
         return predict_model_func(mode)
     else:
-        raise HTTPException(status_code=400, detail="Неверный режим. Используйте 'smoke', 'upload' или 'db'")
+        raise HTTPException(status_code=400, detail="Неверный режим. Используйте 'smoke' или 'upload'")
     
 if __name__ == "__main__":
     config = configparser.ConfigParser()
