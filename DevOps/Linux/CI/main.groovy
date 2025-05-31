@@ -129,7 +129,8 @@ pipeline {
                             if [ -z "$containerId" ]; then
                             echo "App container is not running"; exit 1
                             fi
-                            docker exec "$containerId" python3 -m unittest discover -s src/unit_tests --maxfail=1 --disable-warnings -q
+                            # Запускаем unittest через интерпретатор Python, без неподдерживаемых флагов
+                            docker exec "$containerId" python3 -m unittest discover -s src/unit_tests -q
                             '''
                         } catch (Exception e) {
                             echo "Unit tests failed: ${e.getMessage()}"
@@ -140,6 +141,7 @@ pipeline {
                 }
             }
         }
+
 
         stage('Checkout container logs') {
             steps {
