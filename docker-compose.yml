@@ -27,3 +27,8 @@ services:
 volumes:
   redis_data:
     driver: local
+
+deploy:
+  resources:
+    limits:
+      memory: 2g
