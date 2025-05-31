@@ -129,7 +129,7 @@ pipeline {
                             if [ -z "$containerId" ]; then
                             echo "App container is not running"; exit 1
                             fi
-                            docker exec "$containerId" unittest src/unit_tests --maxfail=1 --disable-warnings -q
+                            docker exec "$containerId" python3 -m unittest discover -s src/unit_tests --maxfail=1 --disable-warnings -q
                             '''
                         } catch (Exception e) {
                             echo "Unit tests failed: ${e.getMessage()}"
