@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    command: bash -c "python src/preprocess.py && python src/train.py && python src/predict.py -m LOG_REG -t smoke && coverage run src/unit_tests/test_preprocess.py && coverage report -m"
+    command: bash -c "python src/preprocess.py && python src/train.py && python src/predict.py -m LOG_REG -t smoke && coverage run src/unit_tests && coverage report -m"
     ports:
       - 8001:8001
     image: derelia/big_data_lab_second:latest
