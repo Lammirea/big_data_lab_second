@@ -17,6 +17,7 @@ else:
 
 from train import MultiModel
 
+# Сделать так, чтобы для unit тестов загружались данные из папки unit_tests/data_for_tests
 class TestTrainModels(unittest.TestCase):
     def setUp(self):
         """Инициализация перед каждым тестом."""
@@ -24,7 +25,7 @@ class TestTrainModels(unittest.TestCase):
 
     def test_log_reg_model(self):
         """Тест обучения логистической регрессии."""
-        res = self.model.log_reg(use_config=False, predict=False)
+        res = self.model.log_reg(use_config=False, predict=False, max_iter=50)
         self.assertTrue(res)
         # Проверяем, что файл модели создан
         self.assertTrue(os.path.exists(self.model.log_reg_path))
