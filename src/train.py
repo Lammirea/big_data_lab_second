@@ -45,7 +45,7 @@ class MultiModel:
         
         # Загрузка данных из файлов, указанных в config.ini
         #project_root = os.path.abspath(os.path.join(os.getcwd(), '..'))
-        train_path = os.path.normpath(os.path.join(os.getcwd(), self.config["DATA"]["train_file"]))
+        train_path = os.path.normpath(os.path.join(os.getcwd(), self.config["UTEST_DATA"]["train_file"]))
         test_path = os.path.normpath(os.path.join(os.getcwd(), self.config["DATA"]["test_file"]))
         train_df = pd.read_csv(train_path, encoding='latin1', low_memory=False)
         test_df = pd.read_csv(test_path, encoding='latin1', low_memory=False)
