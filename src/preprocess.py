@@ -68,7 +68,7 @@ class DataMaker:
     def prepare_data(self):
         """Загрузка, предобработка и сохранение данных."""
         # Загрузка обучающих данных
-        train_path = os.path.normpath(os.path.join(os.getcwd(), self.config["DATA"]["train_file"]))
+        train_path = os.path.normpath(os.path.join(os.getcwd(), self.config["UTEST_DATA"]["train_file"]))
         train_df = pd.read_csv(train_path, encoding='latin1', low_memory=False)
         X_train, y_train = self.preprocess_data(train_df)
         # Сохранение предобработанных обучающих данных
