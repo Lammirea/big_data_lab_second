@@ -15,7 +15,7 @@ pipeline {
         stage('Clone Repository') {
             steps {
                 cleanWs()
-                sh 'git clone -b develop https://github.com/Lammirea/big_data_lab_second.git  '
+                sh 'git clone -b develop https://github.com/Lammirea/big_data_lab_second.git'
             }
         }
 
@@ -45,14 +45,15 @@ pipeline {
                 dir('big_data_lab_second') {
                     withCredentials([
                         string(credentialsId: 'redis-password', variable: 'REDIS_PASSWORD'),
-                        string(credentialsId: 'redis-user-password', variable: 'REDIS_USER_PASSWORD')
+                        string(credentialsId: 'redis-host', variable: 'REDIS_HOST'),
+                        string(credentialsId: 'redis-port', variable: 'REDIS_PORT'),
+                        string(credentialsId: 'redis-db', variable: 'REDIS_DB')
                     ]) {
                         sh '''
-                            echo "REDIS_HOST=redis-container" > .env
-                            echo "REDIS_PORT=6379" >> .env
+                            echo "REDIS_HOST=$REDIS_HOST" > .env
+                            echo "REDIS_PORT=$REDIS_PORT" >> .env
                             echo "REDIS_PASSWORD=$REDIS_PASSWORD" >> .env
-                            echo "REDIS_USER_PASSWORD=$REDIS_USER_PASSWORD" >> .env
-                            echo "REDIS_DB=0" >> .env
+                            echo "REDIS_DB=$REDIS_DB" >> .env
                             docker-compose up -d --build
                         '''
                     }
@@ -96,8 +97,8 @@ pipeline {
             sh '''
                 docker stop web || true
                 docker rm web || true
-                docker stop redis-container || true
-                docker rm redis-container || true
+                docker stop redis || true
+                docker rm redis || true
                 docker rmi derelia/big_data_lab_second:latest || true
                 docker rmi redis:latest || true
                 docker logout || true
