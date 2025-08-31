@@ -2,11 +2,7 @@ pipeline {
     agent any
 
     environment {
-        REDIS_HOST = 'redis'
-        REDIS_PORT = '6379'
-        REDIS_DB = '0'
-        REDIS_PASSWORD = credentials('REDIS_PASSWORD')
-        DOCKER_CREDS = credentials('big_data_lab_second')
+        DOCKERHUB_CREDS = credentials('big_data_lab_second')
     }
 
     options {
@@ -15,189 +11,97 @@ pipeline {
     }
 
     stages {
-        stage('Setup Docker') {
+
+        stage('Clone Repository') {
             steps {
-                script {
-                    // Установка Docker на сервере, если его нет
-                    sh '''
-                    if ! [ -x "$(command -v docker)" ]; then
-                      curl -fsSL https://get.docker.com -o get-docker.sh
-                      sh get-docker.sh
-                    fi
-                    '''
-                }
-            }
-        }
-
-        stage('Checkout repo dir') {
-            steps {
-                script {
-                    try {
-                        sh 'GIT_LFS_SKIP_SMUDGE=1 git clone -b develop https://github.com/Lammirea/big_data_lab_second.git'
-                    } catch (Exception e) {
-                        echo "Ошибка при клонировании репозитория: ${e.getMessage()}"
-                        currentBuild.result = 'FAILURE'
-                        error("Не удалось клонировать репозиторий")
-                    }
-                }
-                sh 'cd big_data_lab_second && git lfs pull && ls -lash'
-                sh 'whoami'
-            }
-        }
-
-        stage('Diagnostics') {
-            steps {
-                script {
-                    echo 'Проверка наличия Docker и переменных окружения...'
-                    
-                    // Проверим, установлен ли docker
-                    sh 'which docker || echo "Docker не найден"'
-
-                    // Проверим версию docker (если найден)
-                    sh 'docker --version || echo "Невозможно получить версию Docker"'
-
-                    // Проверим, подставилась ли переменная логина (не пароль!)
-                    sh 'echo "DOCKER_CREDS_USR: $DOCKER_CREDS_USR"'
-                }
-            }
-        }
-
-        stage('Login') {
-            steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'big_data_lab_second', usernameVariable: 'DOCKER_CREDS_USR', passwordVariable: 'DOCKER_CREDS_PSW')]) {
-                try {
-                    sh 'echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin'
-                } catch (Exception e) {
-                    echo "Ошибка при входе в DockerHub: ${e.getMessage()}"
-                    currentBuild.result = 'FAILURE'
-                    error("Не удалось войти в DockerHub")
-                }
-            }
-        }
-            }
-        }
-
-        stage('Create and run docker container') {
-            steps {
-                script {
-                    try {
-                        sh 'echo "REDIS_HOST=$REDIS_HOST  REDIS_PORT=$REDIS_PORT  REDIS_DB=$REDIS_DB"'
-                        sh 'cd big_data_lab_second && docker compose build'
-                    } catch (Exception e) {
-                        echo "Ошибка при сборке Docker-контейнера: ${e.getMessage()}"
-                        currentBuild.result = 'FAILURE'
-                        error("Не удалось собрать Docker-контейнер")
-                    }
-                    try {
-                        sh 'cd big_data_lab_second && docker compose up -d'
-                    } catch (Exception e) {
-                        echo "Ошибка при запуске Docker-контейнера: ${e.getMessage()}"
-                        currentBuild.result = 'FAILURE'
-                        error("Не удалось запустить Docker-контейнер")
-                    }
-                }
-            }
-        }
-
-        stage('Wait for Redis') {
-            steps {
-                dir('big_data_lab_second') {
-                    sh '''
-                    svc=redis
-                    cid=$(docker compose ps -q $svc)
-                    [ -n "$cid" ] || { echo "Redis service not found"; exit 1; }
-                    for i in {1..12}; do
-                      res=$(docker exec "$cid" redis-cli -a "$REDIS_PASSWORD" ping || true)
-                      if [ "$res" = "PONG" ]; then echo 'Redis ready'; exit 0; fi
-                      sleep 5
-                    done
-                    echo 'Redis did not respond'; exit 1
-                    '''
-                }
+                cleanWs()
+                sh 'git clone -b master https://github.com/Lammirea/big_data_lab_second.git  '
             }
         }
 
         stage('Run Unit Tests') {
             steps {
                 dir('big_data_lab_second') {
-                    script {
-                        echo 'Запуск unit тестов из папки unit_tests'
-                        try {
-                            sh '''
-                            containerId=$(docker compose ps -q app)
-                            if [ -z "$containerId" ]; then
-                            echo "App container is not running"; exit 1
-                            fi
-                            # Запускаем unittest через интерпретатор Python, без неподдерживаемых флагов
-                            docker exec "$containerId" python3 -m unittest discover -s src/unit_tests -q
-                            '''
-                        } catch (Exception e) {
-                            echo "Unit tests failed: ${e.getMessage()}"
-                            currentBuild.result = 'FAILURE'
-                            error("Unit tests execution error")
-                        }
-                    }
+                    sh '''
+                        bash -c "
+                            python3 -m venv venv &&
+                            . venv/bin/activate &&
+                            pip install -r requirements.txt &&
+                            pytest src/unit_tests --cov=src
+                        "
+                    '''
                 }
             }
         }
 
-
-        stage('Checkout container logs') {
+        stage('Login to DockerHub') {
             steps {
-                dir("big_data_lab_second") {
-                    sh '''
-                        # ask Compose for the running container ID of the "app" service
-                        containerId=$(docker compose ps -q app)
+                sh 'docker login -u $DOCKERHUB_CREDS_USR -p $DOCKERHUB_CREDS_PSW'
+            }
+        }
 
-                        # POSIX-compatible test
-                        if [ -z "$containerId" ]; then
-                        echo "No 'app' container running"
-                        else
-                        echo "Following logs for container $containerId"
-                        docker logs --tail 1000 -f "$containerId"
+        stage('Build Images and Run Containers') {
+            steps {
+                dir('big_data_lab_second') {
+                    withCredentials([
+                        string(credentialsId: 'redis-password', variable: 'REDIS_PASSWORD'),
+                        string(credentialsId: 'redis-user-password', variable: 'REDIS_USER_PASSWORD')
+                    ]) {
+                        sh '''
+                            echo "REDIS_HOST=redis-container" > .env
+                            echo "REDIS_PORT=6379" >> .env
+                            echo "REDIS_PASSWORD=$REDIS_PASSWORD" >> .env
+                            echo "REDIS_USER_PASSWORD=$REDIS_USER_PASSWORD" >> .env
+                            echo "REDIS_DB=0" >> .env
+                            docker-compose up -d --build
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Check Container Logs') {
+            steps {
+                dir("MLOps-lab3") {
+                    sh '''
+                        container_id=$(docker ps -qf "name=web")
+                        if [ -z "$container_id" ]; then
+                            echo "No container running"
+                            exit 1
                         fi
+                        docker logs --tail 1000 "$container_id"
                     '''
                 }
             }
         }
 
-               
-        stage('Checkout coverage report') {
+        stage('Push Docker Image to DockerHub') {
             steps {
-                dir("big_data_lab_second") {
+                dir('big_data_lab_second') {
                     sh '''
-                        docker compose logs -t --tail 10
+                        image_id=$(docker images -q derelia/big_data_lab_second:latest)
+                        if [ -z "$image_id" ]; then
+                            echo "Error: Docker image not found. Build might have failed."
+                            exit 1
+                        fi
+                        docker push derelia/big_data_lab_second:latest
                     '''
                 }
             }
         }
-
-        stage('Push') {
-            steps {
-                script {
-                    try {
-                        sh 'docker push derelia/big_data_lab_second:latest'
-                    } catch (Exception e) {
-                        echo "Ошибка при публикации Docker-образа: ${e.getMessage()}"
-                        currentBuild.result = 'FAILURE'
-                        error("Не удалось опубликовать Docker-образ")
-                    }
-                }
-            }
-        }
-
     }
 
     post {
         always {
-            script {
-                try {
-                    sh 'docker logout'
-                } catch (Exception e) {
-                    echo "Ошибка при выходе из DockerHub: ${e.getMessage()}"
-                }
-            }
+            sh '''
+                docker stop web || true
+                docker rm web || true
+                docker stop redis-container || true
+                docker rm redis-container || true
+                docker rmi derelia/big_data_lab_second:latest || true
+                docker rmi redis:latest || true
+                docker logout || true
+            '''
             cleanWs()
         }
     }
