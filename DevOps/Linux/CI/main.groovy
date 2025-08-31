@@ -15,7 +15,7 @@ pipeline {
         stage('Clone Repository') {
             steps {
                 cleanWs()
-                sh 'git clone -b master https://github.com/Lammirea/big_data_lab_second.git  '
+                sh 'git clone -b develop https://github.com/Lammirea/big_data_lab_second.git  '
             }
         }
 
@@ -62,7 +62,7 @@ pipeline {
         
         stage('Check Container Logs') {
             steps {
-                dir("MLOps-lab3") {
+                dir("big_data_lab_second") {
                     sh '''
                         container_id=$(docker ps -qf "name=web")
                         if [ -z "$container_id" ]; then
