@@ -23,9 +23,18 @@ pipeline {
             steps {
                 dir('big_data_lab_second') {
                     sh '''
+                        # Проверяем доступные версии Python
+                        which python || echo "python not found"
+                        which python3 || echo "python3 not found"
+                        
+                        # Используем python вместо python3, если python3 недоступен
                         bash -c "
-                            python3 -m venv venv &&
+                            python -m venv venv &&
                             . venv/bin/activate &&
+                            pip install -r requirements.txt &&
+                            pytest src/unit_tests --cov=src
+                        " || bash -c "
+                            # Альтернативный вариант с системным Python
                             pip install -r requirements.txt &&
                             pytest src/unit_tests --cov=src
                         "
