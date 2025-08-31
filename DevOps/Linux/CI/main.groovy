@@ -21,33 +21,24 @@ pipeline {
 
     stage('Setup Python and Run Unit Tests') {
         steps {
-        dir('big_data_lab_second') {
-            sh '''
-                # Попытка установить Python, если он отсутствует
-                if ! command -v python3 &> /dev/null; then
-                    if command -v apt-get &> /dev/null; then
-                        sudo apt-get update && sudo apt-get install -y python3 python3-pip python3-venv
-                    elif command -v yum &> /dev/null; then
-                        sudo yum install -y python3 python3-pip
-                    fi
-                fi
-                
-                # Запуск тестов
-                bash -c "
-                    python3 -m venv venv &&
-                    . venv/bin/activate &&
-                    pip install -r requirements.txt &&
-                    pytest src/unit_tests --cov=src
-                " || bash -c "
-                    python -m venv venv &&
-                    . venv/bin/activate &&
-                    pip install -r requirements.txt &&
-                    pytest src/unit_tests --cov=src
-                "
-            '''
+            dir('big_data_lab_second') {
+                sh '''
+                    # Установка Python3 и необходимых пакетов
+                        sudo apt-get update
+                        sudo apt-get install -y python3 python3-pip python3-venv
+                        
+                        # Проверка установки
+                        python3 --version
+                        
+                        # Создание виртуального окружения и запуск тестов
+                        python3 -m venv venv
+                        . venv/bin/activate
+                        pip install -r requirements.txt
+                        pytest src/unit_tests --cov=src
+                '''
+            }
         }
     }
-}
 
         stage('Login to DockerHub') {
             steps {
