@@ -21,7 +21,7 @@ pipeline {
 
     stage('Setup Python and Run Unit Tests') {
         steps {
-        dir('MLOps-lab3') {
+        dir('big_data_lab_second') {
             sh '''
                 # Попытка установить Python, если он отсутствует
                 if ! command -v python3 &> /dev/null; then
