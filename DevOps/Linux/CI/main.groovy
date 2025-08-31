@@ -19,29 +19,35 @@ pipeline {
             }
         }
 
-        stage('Run Unit Tests') {
-            steps {
-                dir('big_data_lab_second') {
-                    sh '''
-                        # Проверяем доступные версии Python
-                        which python || echo "python not found"
-                        which python3 || echo "python3 not found"
-                        
-                        # Используем python вместо python3, если python3 недоступен
-                        bash -c "
-                            python -m venv venv &&
-                            . venv/bin/activate &&
-                            pip install -r requirements.txt &&
-                            pytest src/unit_tests --cov=src
-                        " || bash -c "
-                            # Альтернативный вариант с системным Python
-                            pip install -r requirements.txt &&
-                            pytest src/unit_tests --cov=src
-                        "
-                    '''
-                }
-            }
+    stage('Setup Python and Run Unit Tests') {
+        steps {
+        dir('MLOps-lab3') {
+            sh '''
+                # Попытка установить Python, если он отсутствует
+                if ! command -v python3 &> /dev/null; then
+                    if command -v apt-get &> /dev/null; then
+                        sudo apt-get update && sudo apt-get install -y python3 python3-pip python3-venv
+                    elif command -v yum &> /dev/null; then
+                        sudo yum install -y python3 python3-pip
+                    fi
+                fi
+                
+                # Запуск тестов
+                bash -c "
+                    python3 -m venv venv &&
+                    . venv/bin/activate &&
+                    pip install -r requirements.txt &&
+                    pytest src/unit_tests --cov=src
+                " || bash -c "
+                    python -m venv venv &&
+                    . venv/bin/activate &&
+                    pip install -r requirements.txt &&
+                    pytest src/unit_tests --cov=src
+                "
+            '''
         }
+    }
+}
 
         stage('Login to DockerHub') {
             steps {
