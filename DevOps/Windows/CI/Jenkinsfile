@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDS = credentials('lab_big_data_two')
+        DOCKER_CREDS = credentials('lab_big_data_two')
     }
 
     options {
@@ -11,40 +11,11 @@ pipeline {
     }
 
     stages {
-        stage('Setup Docker') {
-            steps {
-                script {
-                    // Установка Docker на сервере, если его нет
-                    sh '''
-                    if ! [ -x "$(command -v docker)" ]; then
-                      curl -fsSL https://get.docker.com -o get-docker.sh
-                      sh get-docker.sh
-                    fi
-                    '''
-                }
-            }
-        }
 
         stage('Clone Repository') {
             steps {
                 cleanWs()
-                sh 'git clone -b develop https://github.com/Lammirea/big_data_lab_second.git'
-            }
-        }
-
-        stage('Checkout repo dir') {
-            steps {
-                script {
-                    try {
-                        sh 'GIT_LFS_SKIP_SMUDGE=1 git clone -b develop https://github.com/Lammirea/big_data_lab_second.git'
-                    } catch (Exception e) {
-                        echo "Ошибка при клонировании репозитория: ${e.getMessage()}"
-                        currentBuild.result = 'FAILURE'
-                        error("Не удалось клонировать репозиторий")
-                    }
-                }
-                sh 'cd big_data_lab_second && git lfs pull && ls -lash'
-                sh 'whoami'
+                sh 'git clone -b develop https://github.com/Dolmachi/MLOps-lab3.git'
             }
         }
 
@@ -65,7 +36,7 @@ pipeline {
 
         stage('Login to DockerHub') {
             steps {
-                sh 'docker login -u $DOCKERHUB_CREDS_USR -p $DOCKERHUB_CREDS_PSW'
+                sh 'docker login -u $DOCKER_CREDS_USR -p $DOCKER_CREDS_PSW'
             }
         }
 
