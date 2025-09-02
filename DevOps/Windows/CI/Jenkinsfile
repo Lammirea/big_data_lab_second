@@ -15,7 +15,7 @@ pipeline {
         stage('Clone Repository') {
             steps {
                 cleanWs()
-                sh 'git clone -b develop https://github.com/Dolmachi/MLOps-lab3.git'
+                sh 'git clone -b develop https://github.com/Lammirea/big_data_lab_second.git'
             }
         }
 
