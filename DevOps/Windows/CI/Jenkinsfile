@@ -11,6 +11,19 @@ pipeline {
     }
 
     stages {
+        stage('Setup Docker') {
+            steps {
+                script {
+                    // Установка Docker на сервере, если его нет
+                    sh '''
+                    if ! [ -x "$(command -v docker)" ]; then
+                      curl -fsSL https://get.docker.com -o get-docker.sh
+                      sh get-docker.sh
+                    fi
+                    '''
+                }
+            }
+        }
 
         stage('Clone Repository') {
             steps {
@@ -19,6 +32,21 @@ pipeline {
             }
         }
 
+        stage('Checkout repo dir') {
+            steps {
+                script {
+                    try {
+                        sh 'GIT_LFS_SKIP_SMUDGE=1 git clone -b develop https://github.com/Lammirea/big_data_lab_second.git'
+                    } catch (Exception e) {
+                        echo "Ошибка при клонировании репозитория: ${e.getMessage()}"
+                        currentBuild.result = 'FAILURE'
+                        error("Не удалось клонировать репозиторий")
+                    }
+                }
+                sh 'cd big_data_lab_second && git lfs pull && ls -lash'
+                sh 'whoami'
+            }
+        }
 
         stage('Run Unit Tests') {
             steps {
