@@ -222,7 +222,8 @@ class Predictor:
                     password=redis_password,
                     db=redis_db,
                     socket_connect_timeout=5,
-                    socket_timeout=5
+                    socket_timeout=5,
+                    decode_responses=True,
                 )
                 # Проверим соединение (ping)
                 conn.ping()
