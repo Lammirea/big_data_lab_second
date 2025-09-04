@@ -1,25 +1,33 @@
 import logging
 import os
 import sys
+import warnings
 
-FORMATTER = logging.Formatter(
-    "%(asctime)s — %(name)s — %(levelname)s — %(message)s")
-LOG_FILE = os.path.join(os.getcwd(), "logfile.log")
-
+warnings.filterwarnings("ignore")
 
 class Logger:
     """
         Class for logging behaviour of data exporting - object of ExportingTool class
     """
 
-    def __init__(self, show: bool) -> None:
+    def __init__(self, show, enable = True) -> None:
         """
             Re-defined __init__ method which sets show parametr
 
         Args:
             show (bool): if set all logs will be shown in terminal
         """
-        self.show = show
+        self.FORMATTER = logging.Formatter(
+            "%(asctime)s — %(name)s — %(levelname)s — %(message)s")
+        self.LOG_FILE = "logfile.log"
+        self.show = show # Логгировать ли в консоль
+        self.enable = enable # Включен ли логгер вообще (для тестов - отключаем)
+
+    def clear_log_file(self) -> None:
+        """Очищает файл логов"""
+        if os.path.exists(self.LOG_FILE):
+            with open(self.LOG_FILE, 'w'):
+                pass
 
     def get_console_handler(self) -> logging.StreamHandler:
         """
@@ -29,7 +37,7 @@ class Logger:
             logging.StreamHandler: handler object for streaming output through terminal
         """
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(FORMATTER)
+        console_handler.setFormatter(self.FORMATTER)
         return console_handler
 
     def get_file_handler(self) -> logging.FileHandler:
@@ -39,8 +47,8 @@ class Logger:
         Returns:
             logging.FileHandler: handler object for streaming output through std::filestream
         """
-        file_handler = logging.FileHandler(LOG_FILE, mode='w')
-        file_handler.setFormatter(FORMATTER)
+        file_handler = logging.FileHandler(self.LOG_FILE, mode='a')
+        file_handler.setFormatter(self.FORMATTER)
         return file_handler
 
     def get_logger(self, logger_name: str):
@@ -55,8 +63,9 @@ class Logger:
         """
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.DEBUG)
-        if self.show:
-            logger.addHandler(self.get_console_handler())
-        logger.addHandler(self.get_file_handler())
+        if self.enable:
+            if self.show:
+                logger.addHandler(self.get_console_handler())
+            logger.addHandler(self.get_file_handler())
         logger.propagate = False
         return logger
