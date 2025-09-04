@@ -1,5 +1,4 @@
 version: "3.10"
-
 services:
   redis:
     image: redis:latest
@@ -30,7 +29,7 @@ services:
       REDIS_PORT: ${REDIS_PORT}
       REDIS_PASSWORD: ${REDIS_USER_PASSWORD}
       REDIS_DB: ${REDIS_DB}
-    image: Lammirea/big_data_lab_second:latest
+    image: derelia/big_data_lab_second:latest
 
 volumes:
   redis_data:
