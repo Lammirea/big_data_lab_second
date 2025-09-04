@@ -1,0 +1,7 @@
+stages:
+  stage_detecting_attack:
+    cmd: src/train.py
+    deps:
+    - src/train.py
+    outs:
+    - python
