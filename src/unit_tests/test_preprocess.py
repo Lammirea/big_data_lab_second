@@ -24,13 +24,10 @@ warnings.filterwarnings("ignore")
 from logger import Logger
 from train import MultiModel
 
-SHOW_LOG = True
+SHOW_LOG = False
 
 class TestMultiModel(unittest.TestCase):
-
     def setUp(self) -> None:
-        logger = Logger(SHOW_LOG)
-        self.log = logger.get_logger(__name__)
         self.model = MultiModel()
         self.test_df = pd.DataFrame({
             'Flow ID': ['flow1', 'flow2'],
