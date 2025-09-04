@@ -34,7 +34,12 @@ pipeline {
                     bat '''
                         chcp 65001
                         REM run tests inside official python image; mounts repo into /app
-                        docker run --rm -v "%cd%":/app -w /app python:3.11-bullseye bash -lc "python -m pip install --upgrade pip && pip install -r requirements.txt && pytest src/unit_tests --cov=src"
+                        docker run --rm -v "%cd%":/app -w /app python:3.11-bullseye bash -lc " \
+                        python -m pip install --upgrade pip setuptools wheel && \
+                        pip install -r requirements.txt coverage --root-user-action=ignore && \
+                        coverage run -m pytest -q --maxfail=1 --disable-warnings && \
+                        coverage report -m \
+                        "
                     '''
                 }
             }
@@ -113,8 +118,8 @@ pipeline {
         always {
             bat '''
                 chcp 65001
-                docker stop mle-template-web-1 || true
-                docker rm mle-template-web-1 || true
+                docker stop big_data_lab_second-1 || true
+                docker rm big_data_lab_second-1 || true
                 docker stop redis-container || true
                 docker rm redis-container || true
                 docker rmi derelia/big_data_lab_second:latest || true
