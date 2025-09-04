@@ -3,7 +3,7 @@ import os
 import unittest
 import pandas as pd
 import sys
-import redis
+
 # Добавляем путь для импорта модуля train, где определён класс MultiModel
 sys.path.insert(1, os.path.join(os.getcwd(), "src"))
 
@@ -17,20 +17,28 @@ if os.path.exists(config_path):
 else:
     raise FileNotFoundError(f"Ошибка: файл {config_path} не найден")
 
+import warnings
+
+warnings.filterwarnings("ignore")
+
+from logger import Logger
 from train import MultiModel
 
-class TestPreprocess(unittest.TestCase):
-    def setUp(self):
-        """Инициализация перед каждым тестом."""
+SHOW_LOG = True
+
+class TestMultiModel(unittest.TestCase):
+
+    def setUp(self) -> None:
+        logger = Logger(SHOW_LOG)
+        self.log = logger.get_logger(__name__)
         self.model = MultiModel()
-        # Тестовый DataFrame со всеми столбцами для проверки предобработки
         self.test_df = pd.DataFrame({
             'Flow ID': ['flow1', 'flow2'],
             ' Source IP': ['192.168.1.1', '192.168.1.2'],
             ' Source Port': [12345.0, 54321.0],
             ' Destination IP': ['10.0.0.1', '10.0.0.2'],
             ' Destination Port': [80.0, 443.0],
-            ' Protocol': [6.0, 17.0],  # TCP, UDP
+            ' Protocol': [6.0, 17.0],
             ' Timestamp': ['2023-01-01 00:00:00', '2023-01-01 00:01:00'],
             ' Flow Duration': [1000.0, 2000.0],
             ' Total Fwd Packets': [1.0, 2.0],
@@ -109,21 +117,23 @@ class TestPreprocess(unittest.TestCase):
             ' Idle Std': [0.0, 500.0],
             ' Idle Max': [0.0, 1500.0],
             ' Idle Min': [0.0, 500.0],
-            ' Label': ['BENIGN', 'ATTACK']  # Разные метки для тестирования
+            ' Label': ['BENIGN', 'ATTACK']
         })
 
     def test_preprocess_data(self):
-        """Тест функции предобработки данных."""
         X, y = self.model.preprocess_data(self.test_df)
+        
         # Проверяем, что целевая переменная правильно создается
         self.assertEqual(y.iloc[0], 1)  # BENIGN -> 1
         self.assertEqual(y.iloc[1], 0)  # ATTACK -> 0
+        
         # Проверяем удаление категориальных столбцов
         self.assertNotIn('Flow ID', X.columns)
-        self.assertNotIn('Source IP', X.columns)
-        self.assertNotIn('Destination IP', X.columns)
-        self.assertNotIn('Timestamp', X.columns)
-        self.assertNotIn('Label', X.columns)
+        self.assertNotIn(' Source IP', X.columns)
+        self.assertNotIn(' Destination IP', X.columns)
+        self.assertNotIn(' Timestamp', X.columns)
+        self.assertNotIn(' Label', X.columns)
+        
         # Проверяем удаление столбцов из columns_to_drop
         columns_to_drop = [
             'Total Fwd Packets', 'Flow IAT Mean', 'Fwd Packet Length Std', 'Bwd IAT Mean',
@@ -137,9 +147,12 @@ class TestPreprocess(unittest.TestCase):
         ]
         for col in columns_to_drop:
             self.assertNotIn(col, X.columns)
+        
         # Проверяем, что оставшиеся столбцы присутствуют
         self.assertIn('Flow Duration', X.columns)
         self.assertIn('Total Length of Fwd Packets', X.columns)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
+    Logger(SHOW_LOG).get_logger(__name__).info("TEST TRAIN IS READY")
     unittest.main()
