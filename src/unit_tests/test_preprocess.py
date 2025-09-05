@@ -30,6 +30,7 @@ class TestMultiModel(unittest.TestCase):
 
     def setUp(self) -> None:
         logger = Logger(SHOW_LOG)
+        self.log = logger.get_logger(__name__)
         self.model = MultiModel()
         self.test_df = pd.DataFrame({
             'Flow ID': ['flow1', 'flow2'],

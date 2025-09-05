@@ -10,9 +10,10 @@ from logger import Logger
 SHOW_LOG = True
 
 class DataMaker:
-    def __init__(self):
-        logger = Logger(SHOW_LOG)
-        self.config = configparser.ConfigParser()
+    def __init__(self, to_show=True) -> None:
+        logger = Logger(SHOW_LOG, to_show)
+        if to_show:
+            logger.clear_log_file()
         self.log = logger.get_logger(__name__)
         
         # Получаем директорию текущего файла
@@ -65,42 +66,71 @@ class DataMaker:
         y = df['State']
         return X, y
 
-    def prepare_data(self):
-        """Загрузка, предобработка и сохранение данных."""
-        # Загрузка обучающих данных
-        train_path = os.path.normpath(os.path.join(os.getcwd(), self.config["UTEST_DATA"]["train_file"]))
-        train_df = pd.read_csv(train_path, encoding='latin1', low_memory=False)
-        X_train, y_train = self.preprocess_data(train_df)
-        # Сохранение предобработанных обучающих данных
-        X_train.to_csv(self.train_path[0], index=True)
-        y_train.to_csv(self.train_path[1], index=True)
+    def get_data(self) -> bool:
+        '''
+        Загрузка, предобработка и сохранение данных
+        '''
+        try:
+            # Загрузка обучающих данных
+            train_df = pd.read_csv(self.config["UTEST_DATA"]["train_file"], encoding='latin1', low_memory=False)
+            X_train, y_train = self.preprocess_data(train_df)
+            # Сохранение предобработанных обучающих данных
+            X_train.to_csv(self.train_path[0], index=True)
+            y_train.to_csv(self.train_path[1], index=True)
 
-        # Загрузка тестовых данных
-        test_path = os.path.normpath(os.path.join(os.getcwd(), self.config["DATA"]["test_file"]))
-        test_df = pd.read_csv(test_path, encoding='latin1', low_memory=False)
-        X_test, y_test = self.preprocess_data(test_df)
-        # Сохранение предобработанных тестовых данных
-        X_test.to_csv(self.test_path[0], index=True)
-        y_test.to_csv(self.test_path[1], index=True)
+            # Загрузка тестовых данных
+            test_df = pd.read_csv(self.config["DATA"]["test_file"], encoding='latin1', low_memory=False)
+            X_test, y_test = self.preprocess_data(test_df)
+            # Сохранение предобработанных тестовых данных
+            X_test.to_csv(self.test_path[0], index=True)
+            y_test.to_csv(self.test_path[1], index=True)
 
-        # Преобразование абсолютных путей к относительным относительно директории конфигурационного файла
-        config_dir = os.path.dirname(self.config_path)
-        rel_train_X = os.path.relpath(self.train_path[0], start=config_dir)
-        rel_train_y = os.path.relpath(self.train_path[1], start=config_dir)
-        rel_test_X = os.path.relpath(self.test_path[0], start=config_dir)
-        rel_test_y = os.path.relpath(self.test_path[1], start=config_dir)
+            self.log.info("X and y data is ready")
+            self.config["PREPROCESSED_DATA"] = {
+                'X_train': self.train_path[0],
+                'y_train': self.train_path[1],
+                'X_test': self.test_path[0],
+                'y_test': self.test_path[1]
+            }
+            return os.path.isfile(self.train_path[0]) and \
+                   os.path.isfile(self.train_path[1]) and \
+                   os.path.isfile(self.test_path[0]) and \
+                   os.path.isfile(self.test_path[1])
+        except FileNotFoundError:
+            self.log.error(traceback.format_exc())
+            return False
+        except Exception as e:
+            self.log.error(f"Error in get_data: {str(e)}")
+            return False
 
-        # Обновление конфигурации с относительными путями
+    def split_data(self) -> bool:
+        '''
+        Разбиваем данные на обучающую и тестовую выборку и сохраняем
+        '''
+        if not self.get_data():
+            sys.exit(1)
+        
         self.config["PREPROCESSED_DATA"] = {
-            'X_train': rel_train_X,
-            'y_train': rel_train_y,
-            'X_test': rel_test_X,
-            'y_test': rel_test_y
+            'X_train': self.train_path[0],
+            'y_train': self.train_path[1],
+            'X_test': self.test_path[0],
+            'y_test': self.test_path[1]
         }
-        with open(self.config_path, 'w') as configfile:
+        self.log.info("Train and test data is ready")
+        
+        with open('config.ini', 'w') as configfile:
             self.config.write(configfile)
-        self.log.info("Предобработанные обучающие и тестовые данные сохранены")
-        return True
+            
+        return os.path.isfile(self.train_path[0]) and \
+               os.path.isfile(self.train_path[1]) and \
+               os.path.isfile(self.test_path[0]) and \
+               os.path.isfile(self.test_path[1])
+
+    def save_splitted_data(self, df: pd.DataFrame, path: str) -> bool:
+        df = df.reset_index(drop=True)
+        df.to_csv(path, index=True)
+        self.log.info(f'{path} is saved')
+        return os.path.isfile(path)
 
 
 if __name__ == "__main__":
