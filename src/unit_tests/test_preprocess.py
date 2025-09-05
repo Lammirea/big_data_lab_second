@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore")
 from logger import Logger
 from preprocess import DataMaker
 
-SHOW_LOG = False
+SHOW_LOG = True
 
 class TestDataFilter(unittest.TestCase):
 
