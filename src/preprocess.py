@@ -11,27 +11,41 @@ SHOW_LOG = True
 
 class DataMaker:
     def __init__(self, to_show=True) -> None:
+        # Logger: second parameter is "enable" in Logger
         logger = Logger(SHOW_LOG, to_show)
         if to_show:
             logger.clear_log_file()
         self.log = logger.get_logger(__name__)
-        
+
+        # Инициализируем парсер конфигурации прежде чем читать
+        self.config = configparser.ConfigParser()
+
         # Получаем директорию текущего файла
         current_dir = os.path.dirname(os.path.abspath(__file__))
         # Формируем путь на уровень выше (если config.ini в родительской папке)
         self.config_path = os.path.abspath(os.path.join(current_dir, "..", "config.ini"))
-        
-        print(f"Пытаемся загрузить конфиг из: {self.config_path }")
-        
-        if os.path.exists(self.config_path ):
-            self.config.read(self.config_path )
+
+        # Логируем путь к конфигу
+        self.log.debug(f"Пытаемся загрузить конфиг из: {self.config_path}")
+
+        if os.path.exists(self.config_path):
+            # Читаем конфигурацию
+            self.config.read(self.config_path)
             self.log.info("Конфигурация успешно загружена")
         else:
-            error_msg = f"Ошибка: файл {self.config_path } не найден"
+            error_msg = f"Ошибка: файл {self.config_path} не найден"
             self.log.error(error_msg)
             raise FileNotFoundError(error_msg)
 
+        # Папка проекта для данных (по умолчанию в рабочей директории)
         self.project_path = os.path.join(os.getcwd(), "data")
+        # Создадим папку, если её нет
+        try:
+            os.makedirs(self.project_path, exist_ok=True)
+        except Exception:
+            # Если не удалось создать папку — логируем и продолжим (файловые операции потом могут упасть)
+            self.log.warning(f"Не удалось создать папку для данных: {self.project_path}")
+
         # Пути для сохранения предобработанных данных
         self.train_path = [
             os.path.join(self.project_path, "preprocessed_train_X.csv"),
@@ -71,22 +85,30 @@ class DataMaker:
         Загрузка, предобработка и сохранение данных
         '''
         try:
-            # Загрузка обучающих данных
-            train_df = pd.read_csv(self.config["UTEST_DATA"]["train_file"], encoding='latin1', low_memory=False)
+            # Загрузка обучающих данных (в тестах используется секция UTEST_DATA)
+            train_file = self.config.get('UTEST_DATA', 'train_file', fallback=None)
+            if not train_file:
+                self.log.error('train_file не задан в секции UTEST_DATA')
+                return False
+            train_df = pd.read_csv(train_file, encoding='latin1', low_memory=False)
             X_train, y_train = self.preprocess_data(train_df)
             # Сохранение предобработанных обучающих данных
             X_train.to_csv(self.train_path[0], index=True)
             y_train.to_csv(self.train_path[1], index=True)
 
             # Загрузка тестовых данных
-            test_df = pd.read_csv(self.config["DATA"]["test_file"], encoding='latin1', low_memory=False)
+            test_file = self.config.get('DATA', 'test_file', fallback=None)
+            if not test_file:
+                self.log.error('test_file не задан в секции DATA')
+                return False
+            test_df = pd.read_csv(test_file, encoding='latin1', low_memory=False)
             X_test, y_test = self.preprocess_data(test_df)
             # Сохранение предобработанных тестовых данных
             X_test.to_csv(self.test_path[0], index=True)
             y_test.to_csv(self.test_path[1], index=True)
 
             self.log.info("X and y data is ready")
-            self.config["PREPROCESSED_DATA"] = {
+            self.config['PREPROCESSED_DATA'] = {
                 'X_train': self.train_path[0],
                 'y_train': self.train_path[1],
                 'X_test': self.test_path[0],
@@ -101,6 +123,7 @@ class DataMaker:
             return False
         except Exception as e:
             self.log.error(f"Error in get_data: {str(e)}")
+            self.log.debug(traceback.format_exc())
             return False
 
     def split_data(self) -> bool:
@@ -108,19 +131,24 @@ class DataMaker:
         Разбиваем данные на обучающую и тестовую выборку и сохраняем
         '''
         if not self.get_data():
-            sys.exit(1)
-        
-        self.config["PREPROCESSED_DATA"] = {
+            # не делаем sys.exit в библиотечном коде — вернём False, чтобы тесты могли обработать ошибку
+            return False
+
+        self.config['PREPROCESSED_DATA'] = {
             'X_train': self.train_path[0],
             'y_train': self.train_path[1],
             'X_test': self.test_path[0],
             'y_test': self.test_path[1]
         }
         self.log.info("Train and test data is ready")
-        
-        with open('config.ini', 'w') as configfile:
-            self.config.write(configfile)
-            
+
+        # Запишем обновлённый конфиг в тот же файл, откуда читали
+        try:
+            with open(self.config_path, 'w') as configfile:
+                self.config.write(configfile)
+        except Exception:
+            self.log.warning(f"Не удалось записать конфиг по пути {self.config_path}")
+
         return os.path.isfile(self.train_path[0]) and \
                os.path.isfile(self.train_path[1]) and \
                os.path.isfile(self.test_path[0]) and \
@@ -128,6 +156,13 @@ class DataMaker:
 
     def save_splitted_data(self, df: pd.DataFrame, path: str) -> bool:
         df = df.reset_index(drop=True)
+        # Убедимся, что директория для путьa существует
+        dirn = os.path.dirname(path)
+        if dirn:
+            try:
+                os.makedirs(dirn, exist_ok=True)
+            except Exception:
+                pass
         df.to_csv(path, index=True)
         self.log.info(f'{path} is saved')
         return os.path.isfile(path)
