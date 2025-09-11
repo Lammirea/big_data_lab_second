@@ -65,7 +65,7 @@ class DataMaker:
         columns_to_drop_cat = ['Flow ID', 'Source IP', 'Destination IP', 'Timestamp', 'Label']
         columns_to_drop = [
             'Total Fwd Packets', 'Flow IAT Mean', 'Fwd Packet Length Std', 'Bwd IAT Mean',
-            'Bwd IAT Max', 'Fwd IAT Total', 'Bwd IAT Mean', 'Active Max', 'Fwd IAT Min',
+            'Bwd IAT Max', 'Fwd IAT Total', 'Active Max', 'Fwd IAT Min',
             'Fwd IAT Mean', 'Bwd IAT Std', 'Bwd IAT Total', 'Fwd PSH Flags', 'FIN Flag Count',
             'Active Min', 'Down/Up Ratio', 'Bwd IAT Min', 'Active Std', 'Fwd Packet Length Min',
             'SYN Flag Count', 'Active Mean', 'Idle Std', 'Bwd PSH Flags', 'Bwd URG Flags',
@@ -74,6 +74,9 @@ class DataMaker:
             'Fwd Avg Bulk Rate', 'Fwd Avg Packets/Bulk', 'ECE Flag Count'
         ]
 
+        # Удаляем возможные дубликаты в списке колонок (сохраняя порядок)
+        columns_to_drop = list(dict.fromkeys(columns_to_drop))
+
         # Создаём целевой столбец State: BENIGN -> 1, иначе 0
         if 'Label' not in df.columns:
             self.log.error("Column 'Label' not present in dataframe during preprocessing")
@@ -81,6 +84,7 @@ class DataMaker:
         df['State'] = df['Label'].map(lambda a: 1 if a == 'BENIGN' else 0)
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
 
+        # Убедимся, что отступы ровные — строка ниже находится на том же уровне, что и предыдущие
         X = df.drop(columns=columns_to_drop_cat + columns_to_drop + ['State'], errors='ignore')
         y = df['State']
         return X, y
