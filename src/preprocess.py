@@ -179,4 +179,4 @@ class DataMaker:
 
 if __name__ == "__main__":
     data_maker = DataMaker()
-    data_maker.prepare_data()
+    data_maker.split_data()
