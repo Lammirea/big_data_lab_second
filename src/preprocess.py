@@ -58,9 +58,11 @@ class DataMaker:
         self.log.info("DataMaker is ready")
 
     def preprocess_data(self, df):
-        """Предобработка данных о сетевом трафике."""
-        # Список столбцов для удаления
-        columns_to_drop_cat = [' Source IP', ' Destination IP', ' Timestamp', 'Flow ID']
+        # Удаляем лишние пробелы в названиях столбцов
+        df.columns = df.columns.str.strip()
+
+        # Столбцы, которые хотим удалить (если есть)
+        columns_to_drop_cat = ['Flow ID', 'Source IP', 'Destination IP', 'Timestamp', 'Label']
         columns_to_drop = [
             'Total Fwd Packets', 'Flow IAT Mean', 'Fwd Packet Length Std', 'Bwd IAT Mean',
             'Bwd IAT Max', 'Fwd IAT Total', 'Bwd IAT Mean', 'Active Max', 'Fwd IAT Min',
@@ -71,12 +73,15 @@ class DataMaker:
             'Bwd Avg Bulk Rate', 'Bwd Avg Packets/Bulk', 'Bwd Avg Bytes/Bulk',
             'Fwd Avg Bulk Rate', 'Fwd Avg Packets/Bulk', 'ECE Flag Count'
         ]
-        # Создание целевой переменной: 1 - BENIGN, 0 - атака
+
+        # Создаём целевой столбец State: BENIGN -> 1, иначе 0
+        if 'Label' not in df.columns:
+            self.log.error("Column 'Label' not present in dataframe during preprocessing")
+            raise KeyError("Label column missing")
         df['State'] = df['Label'].map(lambda a: 1 if a == 'BENIGN' else 0)
-        # Замена бесконечных значений на NaN
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
-        # Удаление ненужных столбцов и столбцов ' Label', 'State' из X
-        X = df.drop(columns=columns_to_drop_cat + columns_to_drop + ['Label', 'State'], errors='ignore')
+
+        X = df.drop(columns=columns_to_drop_cat + columns_to_drop + ['State'], errors='ignore')
         y = df['State']
         return X, y
 

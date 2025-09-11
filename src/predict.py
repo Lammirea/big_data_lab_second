@@ -16,6 +16,7 @@ import yaml
 import numpy as np
 import warnings
 import redis
+from preprocess import DataMaker
 
 warnings.filterwarnings("ignore")
 
@@ -69,8 +70,9 @@ class Predictor:
         test_df = pd.read_csv(test_path, encoding='latin1', low_memory=False)
 
         # Предобработка
-        X_train_raw, self.y_train = self.preprocess_data(train_df)
-        X_test_raw, self.y_test = self.preprocess_data(test_df)
+        preprocess_data = DataMaker()
+        X_train_raw, self.y_train = preprocess_data.preprocess_data(train_df)
+        X_test_raw, self.y_test = preprocess_data.preprocess_data(test_df)
         self.feature_columns = list(X_train_raw.columns)
 
         # Pipeline (imputer + scaler)
@@ -92,34 +94,6 @@ class Predictor:
             self.log.error("Failed to save preprocessor: " + traceback.format_exc())
 
         self.log.info("Predictor is ready")
-
-    def preprocess_data(self, df):
-        # Удаляем лишние пробелы в названиях столбцов
-        df.columns = df.columns.str.strip()
-
-        # Столбцы, которые хотим удалить (если есть)
-        columns_to_drop_cat = ['Flow ID', 'Source IP', 'Destination IP', 'Timestamp', 'Label']
-        columns_to_drop = [
-            'Total Fwd Packets', 'Flow IAT Mean', 'Fwd Packet Length Std', 'Bwd IAT Mean',
-            'Bwd IAT Max', 'Fwd IAT Total', 'Bwd IAT Mean', 'Active Max', 'Fwd IAT Min',
-            'Fwd IAT Mean', 'Bwd IAT Std', 'Bwd IAT Total', 'Fwd PSH Flags', 'FIN Flag Count',
-            'Active Min', 'Down/Up Ratio', 'Bwd IAT Min', 'Active Std', 'Fwd Packet Length Min',
-            'SYN Flag Count', 'Active Mean', 'Idle Std', 'Bwd PSH Flags', 'Bwd URG Flags',
-            'Fwd URG Flags', 'Fwd Avg Bytes/Bulk', 'RST Flag Count', 'CWE Flag Count',
-            'Bwd Avg Bulk Rate', 'Bwd Avg Packets/Bulk', 'Bwd Avg Bytes/Bulk',
-            'Fwd Avg Bulk Rate', 'Fwd Avg Packets/Bulk', 'ECE Flag Count'
-        ]
-
-        # Создаём целевой столбец State: BENIGN -> 1, иначе 0
-        if 'Label' not in df.columns:
-            self.log.error("Column 'Label' not present in dataframe during preprocessing")
-            raise KeyError("Label column missing")
-        df['State'] = df['Label'].map(lambda a: 1 if a == 'BENIGN' else 0)
-        df.replace([np.inf, -np.inf], np.nan, inplace=True)
-
-        X = df.drop(columns=columns_to_drop_cat + columns_to_drop + ['State'], errors='ignore')
-        y = df['State']
-        return X, y
 
     def predict(self):
         args = self.parser.parse_args()

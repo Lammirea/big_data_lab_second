@@ -169,47 +169,17 @@ class MultiModel:
         self.log.info(f'{path} is saved')
         return os.path.isfile(path)
 
-    def predict(self, model_name, mode, file_contents=None):
-        # Загрузка предобработчика
-        with open(self.preprocessor_path, "rb") as f:
-            preproc_data = pickle.load(f)
-            pipeline = preproc_data['pipeline']
-            feature_columns = preproc_data['feature_columns']
-        
-        # Загрузка модели
-        model_path = getattr(self, f"{model_name}_path")
-        with open(model_path, "rb") as f:
-            classifier = pickle.load(f)
-        
-        if mode == "smoke":
-            # Предсказание на тестовых данных
-            y_pred = classifier.predict(self.X_test_scaled)
-            score = accuracy_score(self.y_test, y_pred)
-            return {"mode": "smoke", "test_score": score}
-        elif mode == "upload":
-            # Предсказание на загруженном файле
-            if file_contents is None:
-                raise ValueError("Файл не предоставлен")
-            uploaded_df = pd.read_csv(io.StringIO(file_contents.decode('utf-8')))
-            uploaded_df.replace([np.inf, -np.inf], np.nan, inplace=True)
-            X_upload_raw = uploaded_df[feature_columns]
-            X_upload_scaled = pipeline.transform(X_upload_raw)
-            preds = classifier.predict(X_upload_scaled)
-            return {"mode": "upload", "predictions": preds.tolist()}
-        else:
-            raise ValueError("Неверный режим. Используйте 'smoke' или 'upload'.")
-
 if __name__ == "__main__":
     multi_model = MultiModel()
     # multi_model.d_tree(use_config=False, predict=True)
     # result = multi_model.predict("d_tree", "smoke")
 
     multi_model.log_reg(use_config=False, predict=True)
-    result = multi_model.predict("log_reg", "smoke")
+    #result = multi_model.predict("log_reg", "smoke")
 
     # multi_model.gnb(predict=True)
     # result = multi_model.predict("gnb", "smoke")
 
     # multi_model.rand_forest(use_config=False, predict=True)
     # result = multi_model.predict("rand_forest", "smoke")
-    print(result)
+    #print(result)
