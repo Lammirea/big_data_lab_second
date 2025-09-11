@@ -72,11 +72,11 @@ class DataMaker:
             'Fwd Avg Bulk Rate', 'Fwd Avg Packets/Bulk', 'ECE Flag Count'
         ]
         # Создание целевой переменной: 1 - BENIGN, 0 - атака
-        df['State'] = df[' Label'].map(lambda a: 1 if a == 'BENIGN' else 0)
+        df['State'] = df['Label'].map(lambda a: 1 if a == 'BENIGN' else 0)
         # Замена бесконечных значений на NaN
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
         # Удаление ненужных столбцов и столбцов ' Label', 'State' из X
-        X = df.drop(columns=columns_to_drop_cat + columns_to_drop + [' Label', 'State'], errors='ignore')
+        X = df.drop(columns=columns_to_drop_cat + columns_to_drop + ['Label', 'State'], errors='ignore')
         y = df['State']
         return X, y
 
