@@ -41,7 +41,7 @@ class TestDataFilter(unittest.TestCase):
 
     def test_save_splitted_data(self): # Проверка на успешное сохранение данных по пути из конфига
         self.assertEqual(self.data_maker.save_splitted_data(pd.read_csv(
-            config["State"][" Label"], index_col=0), config["State"][" Label"]), True)
+            config["State"]["Label"], index_col=0), config["State"]["Label"]), True)
 
 
 if __name__ == "__main__":

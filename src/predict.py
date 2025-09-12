@@ -80,6 +80,7 @@ class Predictor:
             ('imputer', SimpleImputer(strategy='mean')),
             ('scaler', StandardScaler())
         ])
+        
         self.X_train_scaled = self.pipeline.fit_transform(X_train_raw)
         self.X_test_scaled = self.pipeline.transform(X_test_raw)
 
