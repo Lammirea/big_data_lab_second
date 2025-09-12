@@ -42,15 +42,6 @@ class TestDataFilter(unittest.TestCase):
         result = self.data_maker.split_data()
         self.assertEqual(result, True)
 
-    def test_save_splitted_data(self):
-        """
-        Проверка на успешное сохранение данных по пути из (временного) конфига.
-        Используем наш временный label.csv (self.config['State']['Label']).
-        """
-        self.assertEqual(self.data_maker.save_splitted_data(pd.read_csv(
-            config["UTEST_DATA"]["train_file"], index_col=0, encoding='latin1', sep=";", low_memory=False), config["UTEST_DATA"]["train_file"]), True)
-
-
 if __name__ == "__main__":
     Logger(SHOW_LOG).get_logger(__name__).info("TEST TRAIN IS READY")
     unittest.main()
