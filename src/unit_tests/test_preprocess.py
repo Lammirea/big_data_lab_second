@@ -48,7 +48,7 @@ class TestDataFilter(unittest.TestCase):
         Используем наш временный label.csv (self.config['State']['Label']).
         """
         self.assertEqual(self.data_maker.save_splitted_data(pd.read_csv(
-            config["DATA"]["test_file"], index_col=0, encoding='latin1', sep=";", low_memory=False), config["DATA"]["test_file"]), True)
+            config["UTEST_DATA"]["train_file"], index_col=0, encoding='latin1', sep=";", low_memory=False), config["UTEST_DATA"]["train_file"]), True)
 
 
 if __name__ == "__main__":
