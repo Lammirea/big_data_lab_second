@@ -38,10 +38,6 @@ class TestDataFilter(unittest.TestCase):
         logger = Logger(SHOW_LOG)
         self.log = logger.get_logger(__name__)
 
-        # Создаём экземпляр DataMaker. Ваша реализация может принимать дополнительные аргументы;
-        # если сигнатура изменилась, можно передать config_path или пути явным образом.
-        # Здесь оставляю вызов с единственным параметром (как у вас было): DataMaker(False)
-        # — предполагается, что DataMaker внутри сам читает config.ini из cwd.
         try:
             self.data_maker = DataMaker(False)  # Отключаем логгирование внутри класса
         except TypeError:
