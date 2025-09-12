@@ -47,11 +47,8 @@ class TestDataFilter(unittest.TestCase):
         Проверка на успешное сохранение данных по пути из (временного) конфига.
         Используем наш временный label.csv (self.config['State']['Label']).
         """
-        label_path = self.config['DATA']['test_file']
-        # Подгружаем label csv, как в исходном тесте (index_col=0, т.к. мы сохраняли index=True)
-        label_df = pd.read_csv(label_path, index_col=0)
-        result = self.data_maker.save_splitted_data(label_df, label_path)
-        self.assertEqual(result, True)
+        self.assertEqual(self.data_maker.save_splitted_data(pd.read_csv(
+            config["DATA"]["test_file"], index_col=0), config["DATA"]["test_file"]), True)
 
 
 if __name__ == "__main__":
