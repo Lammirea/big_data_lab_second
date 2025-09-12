@@ -32,14 +32,6 @@ class TestDataFilter(unittest.TestCase):
         self.log = logger.get_logger(__name__)
         self.data_maker = DataMaker(False) # Отключаем логгирование внутри класса
 
-    def tearDown(self) -> None:
-        # Восстановим cwd и удалим временную директорию
-        os.chdir(self._orig_cwd)
-        try:
-            self.tmpdir_obj.cleanup()
-        except Exception:
-            pass
-
     def test_get_data(self):
         """Проверка на успешную обработку данных (get_data должен вернуть True)."""
         result = self.data_maker.get_data()

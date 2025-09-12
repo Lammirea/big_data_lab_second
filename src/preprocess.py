@@ -102,7 +102,6 @@ class DataMaker:
                 return False
             train_df = pd.read_csv(train_file, encoding='latin1', low_memory=False)
             X_train, y_train = self.preprocess_data(train_df)
-            print("good 1")
             # Сохранение предобработанных обучающих данных
             X_train.to_csv(self.train_path[0], index=True)
             y_train.to_csv(self.train_path[1], index=True)
@@ -114,7 +113,7 @@ class DataMaker:
                 return False
             test_df = pd.read_csv(test_file, encoding='latin1', sep=";", low_memory=False)
             X_test, y_test = self.preprocess_data(test_df)
-            print("good 2")
+
             # Сохранение предобработанных тестовых данных
             X_test.to_csv(self.test_path[0], index=True)
             y_test.to_csv(self.test_path[1], index=True)
