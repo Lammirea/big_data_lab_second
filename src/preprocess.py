@@ -111,7 +111,7 @@ class DataMaker:
             if not test_file:
                 self.log.error('test_file не задан в секции DATA')
                 return False
-            test_df = pd.read_csv(test_file, encoding='latin1', sep=";", low_memory=False)
+            test_df = pd.read_csv(test_file, encoding='latin1', low_memory=False)
             X_test, y_test = self.preprocess_data(test_df)
 
             # Сохранение предобработанных тестовых данных
