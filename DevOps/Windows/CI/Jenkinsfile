@@ -61,12 +61,16 @@ pipeline {
                     finally {
                         dir('big_data_lab_second') {
                             withCredentials([
-                                string(credentialsId: 'redis-username', variable: 'REDIS_USERNAME'),
-                                string(credentialsId: 'redis-password', variable: 'REDIS_PASSWORD')
+                                string(credentialsId: 'redis-password', variable: 'REDIS_PASSWORD'),
+                                string(credentialsId: 'redis-host', variable: 'REDIS_HOST'),
+                                string(credentialsId: 'redis-port', variable: 'REDIS_PORT'),
+                                string(credentialsId: 'redis-db', variable: 'REDIS_DB')
                             ]) {
                                 bat '''
                                     chcp 65001
-                                    echo REDIS_USERNAME=%REDIS_USERNAME% > .env
+                                    echo REDIS_HOST=%REDIS_HOST% >> .env
+                                    echo REDIS_PORT=%REDIS_PORT% >> .env
+                                    echo REDIS_DB=%REDIS_DB% >> .env
                                     echo REDIS_PASSWORD=%REDIS_PASSWORD% >> .env
                                     docker-compose up -d
                                 '''
