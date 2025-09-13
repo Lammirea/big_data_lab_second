@@ -6,17 +6,15 @@ from sklearn.metrics import accuracy_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.naive_bayes import GaussianNB
-from sklearn.neighbors import KNeighborsClassifier
+
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from imblearn.over_sampling import SMOTE
-import sys
-import traceback
-import numpy as np
-import io
+
+from preprocess import DataMaker
 from logger import Logger
 
 SHOW_LOG = True
@@ -51,21 +49,22 @@ class MultiModel:
         test_df = pd.read_csv(test_path, encoding='latin1', low_memory=False)
         
         # Предобработка данных
-        X_train_raw, self.y_train = self.preprocess_data(train_df)
-        X_test_raw, self.y_test = self.preprocess_data(test_df)
-        self.feature_columns = list(X_train_raw.columns)
+        data_preproc = DataMaker()
+        self.X_train_raw, self.y_train = data_preproc.preprocess_data(train_df)
+        self.X_test_raw, self.y_test = data_preproc.preprocess_data(test_df)
+        self.feature_columns = list(self.X_train_raw.columns)
         
         # Создание pipeline для предобработки
         self.pipeline = Pipeline(steps=[
             ('imputer', SimpleImputer(strategy='mean')),
             ('scaler', StandardScaler())
         ])
-        X_train_scaled = self.pipeline.fit_transform(X_train_raw)
-        self.X_test_scaled = self.pipeline.transform(X_test_raw)
+        self.X_train_scaled = self.pipeline.fit_transform(self.X_train_raw)
+        self.X_test_scaled = self.pipeline.transform(self.X_test_raw)
         
         # Балансировка классов с помощью SMOTE
         smote = SMOTE(random_state=42)
-        self.X_train_smote, self.y_train_smote = smote.fit_resample(X_train_scaled, self.y_train)
+        self.X_train_smote, self.y_train_smote = smote.fit_resample(self.X_train_scaled, self.y_train)
         
         # Путь для сохранения моделей и предобработчика
         self.project_path = os.path.join(os.getcwd(), "experiments")
@@ -82,27 +81,6 @@ class MultiModel:
         self.d_tree_path = os.path.join(self.project_path, "d_tree.sav")
         
         self.log.info("MultiModel is ready")
-
-    def preprocess_data(self, df):
-        # Normalize column names by stripping spaces
-        df.columns = df.columns.str.strip()
-        
-        columns_to_drop_cat = ['Flow ID', 'Source IP', 'Destination IP', 'Timestamp', 'Label']
-        columns_to_drop = [
-            'Total Fwd Packets', 'Flow IAT Mean', 'Fwd Packet Length Std', 'Bwd IAT Mean',
-            'Bwd IAT Max', 'Fwd IAT Total', 'Bwd IAT Mean', 'Active Max', 'Fwd IAT Min',
-            'Fwd IAT Mean', 'Bwd IAT Std', 'Bwd IAT Total', 'Fwd PSH Flags', 'FIN Flag Count',
-            'Active Min', 'Down/Up Ratio', 'Bwd IAT Min', 'Active Std', 'Fwd Packet Length Min',
-            'SYN Flag Count', 'Active Mean', 'Idle Std', 'Bwd PSH Flags', 'Bwd URG Flags',
-            'Fwd URG Flags', 'Fwd Avg Bytes/Bulk', 'RST Flag Count', 'CWE Flag Count',
-            'Bwd Avg Bulk Rate', 'Bwd Avg Packets/Bulk', 'Bwd Avg Bytes/Bulk',
-            'Fwd Avg Bulk Rate', 'Fwd Avg Packets/Bulk', 'ECE Flag Count'
-        ]
-        df['State'] = df['Label'].map(lambda a: 1 if a == 'BENIGN' else 0)
-        df.replace([np.inf, -np.inf], np.nan, inplace=True)
-        X = df.drop(columns=columns_to_drop_cat + columns_to_drop + ['State'], errors='ignore')
-        y = df['State']
-        return X, y
 
     def log_reg(self, predict=False):
         classifier = LogisticRegression()
@@ -168,7 +146,33 @@ class MultiModel:
             pickle.dump(classifier, f)
         self.log.info(f'{path} is saved')
         return os.path.isfile(path)
+    
+    def predict(self, model_name, test_type):
+        """
+        Выполняет предсказание для заданной модели и типа теста.
+        """
+        model_paths = {
+            "log_reg": self.log_reg_path,
+            "d_tree": self.d_tree_path,
+            "gnb": self.gnb_path,
+            "rand_forest": self.rand_forest_path
+        }
 
+        if model_name not in model_paths:
+            raise ValueError(f"Unknown model: {model_name}")
+
+        try:
+            with open(model_paths[model_name], "rb") as f:
+                model = pickle.load(f)
+        except Exception as e:
+            raise FileNotFoundError(f"Failed to load model {model_name}: {e}")
+
+        if test_type == "smoke":
+            score = model.score(self.X_test_scaled, self.y_test)
+            return {"test_score": score}
+        else:
+            raise NotImplementedError(f"Test type '{test_type}' is not implemented in this method.")
+        
 if __name__ == "__main__":
     multi_model = MultiModel()
     # multi_model.d_tree(use_config=False, predict=True)
