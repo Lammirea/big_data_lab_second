@@ -23,7 +23,7 @@ services:
                coverage run -a src/test_training.py &&
                coverage report -m"
     ports:
-      - "8080:8000"
+      - "8090:8000"
     environment:
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
