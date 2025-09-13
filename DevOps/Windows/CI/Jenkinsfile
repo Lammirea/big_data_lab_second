@@ -87,12 +87,15 @@ pipeline {
                     bat '''
                         chcp 65001
                         docker-compose up -d
-                        for /f %%i in ('docker ps -qf "name=^big_data_lab_second-1"') do set containerId=%%i
-                        echo %containerId%
-                        IF "%containerId%" == "" (
+                        
+                        REM Получаем ID контейнера по имени сервиса (например, web)
+                        for /f "tokens=*" %%i in ('docker ps -qf "name=big_data_lab_second-web-1"') do set containerId=%%i
+                        
+                        echo Container ID: %containerId%
+                        
+                        if "%containerId%"=="" (
                             echo "No container running"
-                        )
-                        ELSE (
+                        ) else (
                             docker logs --tail 1000 -f %containerId%
                         )
                     '''
