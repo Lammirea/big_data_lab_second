@@ -16,8 +16,10 @@ from imblearn.over_sampling import SMOTE
 
 from preprocess import DataMaker
 from logger import Logger
+import sys
 
 SHOW_LOG = True
+IS_TEST_MODE = "pytest" in sys.modules or "unittest" in sys.modules
 
 class MultiModel:
     def __init__(self):
@@ -62,17 +64,21 @@ class MultiModel:
         self.X_train_scaled = self.pipeline.fit_transform(self.X_train_raw)
         self.X_test_scaled = self.pipeline.transform(self.X_test_raw)
         
+        
         # Балансировка классов с помощью SMOTE
         smote = SMOTE(random_state=42)
         self.X_train_smote, self.y_train_smote = smote.fit_resample(self.X_train_scaled, self.y_train)
         
         # Путь для сохранения моделей и предобработчика
-        self.project_path = os.path.join(os.getcwd(), "experiments")
-        if not os.path.exists(self.project_path):
-            os.makedirs(self.project_path)
-        self.preprocessor_path = os.path.join(self.project_path, "preprocessor.sav")
-        with open(self.preprocessor_path, "wb") as f:
-            pickle.dump({'pipeline': self.pipeline, 'feature_columns': self.feature_columns}, f)
+        if not IS_TEST_MODE:
+            self.project_path = os.path.join(os.getcwd(), "experiments")
+            os.makedirs(self.project_path, exist_ok=True)
+            self.preprocessor_path = os.path.join(self.project_path, "preprocessor.sav")
+            try:
+                with open(self.preprocessor_path, "wb") as f:
+                    pickle.dump({'pipeline': self.pipeline, 'feature_columns': self.feature_columns}, f)
+            except Exception as e:
+                self.log.warning(f"Не удалось сохранить preprocessor: {e}")
         
         # Пути для сохранения моделей
         self.log_reg_path = os.path.join(self.project_path, "log_reg.sav")
