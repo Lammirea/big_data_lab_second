@@ -17,6 +17,7 @@ from imblearn.over_sampling import SMOTE
 from preprocess import DataMaker
 from logger import Logger
 import sys
+import tempfile
 
 SHOW_LOG = True
 IS_TEST_MODE = "pytest" in sys.modules or "unittest" in sys.modules
@@ -32,6 +33,7 @@ class MultiModel:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         # Формируем путь на уровень выше (если config.ini в родительской папке)
         config_path = os.path.abspath(os.path.join(current_dir, "..", "config.ini"))
+        self.config_path = config_path  # сохраняем, чтобы при записи знать куда писать
         
         print(f"Пытаемся загрузить конфиг из: {config_path}")
         
@@ -44,7 +46,6 @@ class MultiModel:
             raise FileNotFoundError(error_msg)
         
         # Загрузка данных из файлов, указанных в config.ini
-        #project_root = os.path.abspath(os.path.join(os.getcwd(), '..'))
         train_path = os.path.normpath(os.path.join(os.getcwd(), self.config["UTEST_DATA"]["train_file"]))
         test_path = os.path.normpath(os.path.join(os.getcwd(), self.config["DATA"]["test_file"]))
         train_df = pd.read_csv(train_path, encoding='latin1', low_memory=False)
@@ -70,44 +71,47 @@ class MultiModel:
         self.X_train_smote, self.y_train_smote = smote.fit_resample(self.X_train_scaled, self.y_train)
         
         # Путь для сохранения моделей и предобработчика
-        if not IS_TEST_MODE:
-            self.project_path = os.path.join(os.getcwd(), "experiments")
-            os.makedirs(self.project_path, exist_ok=True)
-            self.preprocessor_path = os.path.join(self.project_path, "preprocessor.sav")
-            try:
-                with open(self.preprocessor_path, "wb") as f:
-                    pickle.dump({'pipeline': self.pipeline, 'feature_columns': self.feature_columns}, f)
-            except Exception as e:
-                self.log.warning(f"Не удалось сохранить preprocessor: {e}")
-        
+        # 1) попытаться взять из переменной окружения (удобно для CI)
+        experiments_dir = os.environ.get("EXPERIMENTS_DIR")
+        if experiments_dir:
+            project_path = os.path.abspath(experiments_dir)
+        else:
+            project_path = os.path.join(os.getcwd(), "experiments")
+
+        # Попытка создать директорию, при ошибке падаем на временную директорию
+        try:
+            if not os.path.exists(project_path):
+                os.makedirs(project_path, exist_ok=True)
+        except PermissionError:
+            # fallback: системная временная папка (обычно доступна в контейнерах)
+            fallback = os.path.join(tempfile.gettempdir(), "experiments")
+            self.log.warning(f"Нет прав на создание {project_path}, переключаемся на {fallback}")
+            project_path = fallback
+            os.makedirs(project_path, exist_ok=True)
+
+        self.project_path = project_path
+        self.preprocessor_path = os.path.join(self.project_path, "preprocessor.sav")
+
+        # Сохранение препроцессора с обработкой ошибок записи
+        try:
+            with open(self.preprocessor_path, "wb") as f:
+                pickle.dump({'pipeline': self.pipeline, 'feature_columns': self.feature_columns}, f)
+        except PermissionError:
+            # если и тут PermissionError — используем ещё более безопасную временную папку
+            fallback2 = os.path.join(tempfile.gettempdir(), "experiments")
+            os.makedirs(fallback2, exist_ok=True)
+            self.preprocessor_path = os.path.join(fallback2, "preprocessor.sav")
+            with open(self.preprocessor_path, "wb") as f:
+                pickle.dump({'pipeline': self.pipeline, 'feature_columns': self.feature_columns}, f)
+            self.log.warning(f"Сохранили препроцессор во временную папку: {self.preprocessor_path}")
+
         # Пути для сохранения моделей
         self.log_reg_path = os.path.join(self.project_path, "log_reg.sav")
         self.rand_forest_path = os.path.join(self.project_path, "rand_forest.sav")
         self.gnb_path = os.path.join(self.project_path, "gnb.sav")
         self.d_tree_path = os.path.join(self.project_path, "d_tree.sav")
         
-        self.log.info("MultiModel is ready")
-
-    def log_reg(self, predict=False):
-        classifier = LogisticRegression()
-        classifier.fit(self.X_train_smote, self.y_train_smote)
-        if predict:
-            y_pred = classifier.predict(self.X_test_scaled)
-            print(accuracy_score(self.y_test, y_pred))
-        params = {'path': self.log_reg_path}
-        return self.save_model(classifier, self.log_reg_path, "LOG_REG", params)
-
-    def rand_forest(self, use_config: bool, n_estimators=100, criterion="entropy", predict=False):
-        if use_config:
-            n_estimators = self.config.getint("RAND_FOREST", "n_estimators", fallback=n_estimators)
-            criterion = self.config["RAND_FOREST"].get("criterion", criterion)
-        classifier = RandomForestClassifier(n_estimators=n_estimators, criterion=criterion)
-        classifier.fit(self.X_train_smote, self.y_train_smote)
-        if predict:
-            y_pred = classifier.predict(self.X_test_scaled)
-            print(accuracy_score(self.y_test, y_pred))
-        params = {'n_estimators': str(n_estimators), 'criterion': criterion, 'path': self.rand_forest_path}
-        return self.save_model(classifier, self.rand_forest_path, "RAND_FOREST", params)
+        self.log.info(f"MultiModel is ready. Models path: {self.project_path}")
 
     def log_reg(self, use_config: bool, solver="lbfgs", max_iter=100, predict=False):
         if use_config:
@@ -121,6 +125,17 @@ class MultiModel:
         params = {'solver': solver, 'max_iter': str(max_iter), 'path': self.log_reg_path}
         return self.save_model(classifier, self.log_reg_path, "LOG_REG", params)
 
+    def rand_forest(self, use_config: bool, n_estimators=100, criterion="entropy", predict=False):
+        if use_config:
+            n_estimators = self.config.getint("RAND_FOREST", "n_estimators", fallback=n_estimators)
+            criterion = self.config["RAND_FOREST"].get("criterion", criterion)
+        classifier = RandomForestClassifier(n_estimators=n_estimators, criterion=criterion)
+        classifier.fit(self.X_train_smote, self.y_train_smote)
+        if predict:
+            y_pred = classifier.predict(self.X_test_scaled)
+            print(accuracy_score(self.y_test, y_pred))
+        params = {'n_estimators': str(n_estimators), 'criterion': criterion, 'path': self.rand_forest_path}
+        return self.save_model(classifier, self.rand_forest_path, "RAND_FOREST", params)
 
     def gnb(self, predict=False):
         classifier = GaussianNB()
@@ -143,13 +158,28 @@ class MultiModel:
         params = {'max_depth': str(max_depth), 'min_samples_split': str(min_samples_split), 'path': self.d_tree_path}
         return self.save_model(classifier, self.d_tree_path, "DECISION_TREE", params)
 
-    def save_model(self, classifier, path, section, params):
+    def save_model(self, classifier, path, section, params, save = True):
         # Сохранение модели и обновление конфигурации
         self.config[section] = params
-        with open('config.ini', 'w') as configfile:
-            self.config.write(configfile)
-        with open(path, 'wb') as f:
-            pickle.dump(classifier, f)
+        # Пишем config.ini в тот путь, откуда он был загружен (self.config_path)
+        try:
+            with open(self.config_path, 'w') as configfile:
+                self.config.write(configfile)
+        except Exception as e:
+            # логируем, но не ломаем процесс — возможно тестовое окружение не разрешает запись
+            self.log.warning(f"Не удалось перезаписать config.ini в {self.config_path}: {e}")
+
+        # Пытаемся записать модель, при ошибке используем временную папку
+        try:
+            with open(path, 'wb') as f:
+                pickle.dump(classifier, f)
+        except PermissionError:
+            fallback = os.path.join(tempfile.gettempdir(), os.path.basename(path))
+            with open(fallback, 'wb') as f:
+                pickle.dump(classifier, f)
+            self.log.warning(f"Не получилось записать модель в {path}, сохранили в {fallback}")
+            path = fallback
+
         self.log.info(f'{path} is saved')
         return os.path.isfile(path)
     
@@ -181,15 +211,4 @@ class MultiModel:
         
 if __name__ == "__main__":
     multi_model = MultiModel()
-    # multi_model.d_tree(use_config=False, predict=True)
-    # result = multi_model.predict("d_tree", "smoke")
-
     multi_model.log_reg(use_config=False, predict=True)
-    #result = multi_model.predict("log_reg", "smoke")
-
-    # multi_model.gnb(predict=True)
-    # result = multi_model.predict("gnb", "smoke")
-
-    # multi_model.rand_forest(use_config=False, predict=True)
-    # result = multi_model.predict("rand_forest", "smoke")
-    #print(result)
