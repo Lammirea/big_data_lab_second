@@ -1,0 +1,97 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKERHUB_CREDS=credentials('lab_big_data_two')
+        LC_ALL = "en_US.UTF-8"
+        LANG    = "en_US.UTF-8"
+        LANGUAGE = "en_US.UTF-8"
+    }
+
+options {
+        timestamps()
+        skipDefaultCheckout(true)
+	}
+    stages {
+
+        stage('Login'){
+            steps{
+                bat 'chcp 65001 && docker login -u %DOCKERHUB_CREDS_USR% -p %DOCKERHUB_CREDS_PSW%'
+            }
+        }
+
+        stage('Create and run docker container') {
+            steps {
+                script {
+                    try {
+                        bat 'chcp 65001 && cd big_data_lab_second && docker-compose build'
+                    }
+                    finally {
+                        dir('big_data_lab_second') {
+                            withCredentials([
+                                string(credentialsId: 'redis-password', variable: 'REDIS_PASSWORD'),
+                                string(credentialsId: 'redis-host', variable: 'REDIS_HOST'),
+                                string(credentialsId: 'redis-port', variable: 'REDIS_PORT'),
+                                string(credentialsId: 'redis-db', variable: 'REDIS_DB')
+                            ]) {
+                                bat '''
+                                    chcp 65001
+                                    echo REDIS_HOST=%REDIS_HOST% >> .env
+                                    echo REDIS_PORT=%REDIS_PORT% >> .env
+                                    echo REDIS_DB=%REDIS_DB% >> .env
+                                    echo REDIS_PASSWORD=%REDIS_PASSWORD% >> .env
+                                    docker-compose up -d
+                                '''
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Wait for App Ready') {
+            steps {
+                script {
+                    timeout(time: 60, unit: 'SECONDS') {
+                        sh '''
+                            until curl -s -o /dev/null -w "%{http_code}" http://localhost:8090/ | grep -q 200; do
+                                echo "Waiting for app to be ready..."
+                                sleep 2
+                            done
+                            echo "App is ready!"
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Run Functional Tests Inside Container') {
+            steps {
+                sh '''
+                    container_id=$(docker ps -qf "name=api-container")
+                    if [ -z "$container_id" ]; then
+                        echo "No container running"
+                        exit 1
+                    fi
+                    docker exec $container_id pytest -s tests/test_functional.py
+                '''
+            }
+        }
+    }
+    
+    post {
+        always {
+            sh '''
+                chcp 65001
+                docker stop big_data_lab_second-1 || true
+                docker rm big_data_lab_second-1 || true
+                docker stop redis-container || true
+                docker rm redis-container || true
+                docker rmi derelia/big_data_lab_second:latest || true
+                docker rmi redis || true
+                docker logout
+            '''
+            cleanWs()
+        }
+    }
+}
