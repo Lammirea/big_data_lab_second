@@ -14,9 +14,17 @@ pipeline {
     }
     
     stages {
-        stage('Checkout') {
+        
+        stage('Clone github repository') {
             steps {
-                checkout scm  // Обязательно: клонируем репозиторий
+                cleanWs()
+                bat 'chcp 65001 && git clone -b develop https://github.com/Lammirea/big_data_lab_second.git  '
+            }
+        }
+        
+        stage('Checkout repo dir') {
+            steps {
+                bat 'chcp 65001 && cd big_data_lab_second && dir'
             }
         }
 
