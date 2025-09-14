@@ -2,20 +2,26 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDS=credentials('lab_big_data_two')
+        DOCKERHUB_CREDS = credentials('lab_big_data_two')
         LC_ALL = "en_US.UTF-8"
-        LANG    = "en_US.UTF-8"
+        LANG = "en_US.UTF-8"
         LANGUAGE = "en_US.UTF-8"
     }
 
-options {
+    options {
         timestamps()
-        skipDefaultCheckout(true)
-	}
+        skipDefaultCheckout(false)  // Важно: не пропускать checkout
+    }
+    
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm  // Обязательно: клонируем репозиторий
+            }
+        }
 
-        stage('Login'){
-            steps{
+        stage('Login') {
+            steps {
                 bat 'chcp 65001 && docker login -u %DOCKERHUB_CREDS_USR% -p %DOCKERHUB_CREDS_PSW%'
             }
         }
@@ -23,26 +29,44 @@ options {
         stage('Create and run docker container') {
             steps {
                 script {
-                    try {
-                        bat 'chcp 65001 && cd big_data_lab_second && docker-compose build'
-                    }
-                    finally {
-                        dir('big_data_lab_second') {
-                            withCredentials([
-                                string(credentialsId: 'redis-password', variable: 'REDIS_PASSWORD'),
-                                string(credentialsId: 'redis-host', variable: 'REDIS_HOST'),
-                                string(credentialsId: 'redis-port', variable: 'REDIS_PORT'),
-                                string(credentialsId: 'redis-db', variable: 'REDIS_DB')
-                            ]) {
-                                bat '''
-                                    chcp 65001
-                                    echo REDIS_HOST=%REDIS_HOST% >> .env
-                                    echo REDIS_PORT=%REDIS_PORT% >> .env
-                                    echo REDIS_DB=%REDIS_DB% >> .env
-                                    echo REDIS_PASSWORD=%REDIS_PASSWORD% >> .env
-                                    docker-compose up -d
-                                '''
-                            }
+                    // Проверяем, существует ли директория и файл docker-compose.yml
+                    bat '''
+                        chcp 65001
+                        dir
+                        if exist "big_data_lab_second" (
+                            echo "Directory big_data_lab_second exists"
+                            cd big_data_lab_second
+                            dir
+                            if exist "docker-compose.yml" (
+                                echo "docker-compose.yml found"
+                                docker-compose build
+                            ) else (
+                                echo "ERROR: docker-compose.yml not found"
+                                exit /b 1
+                            )
+                        ) else (
+                            echo "ERROR: Directory big_data_lab_second not found"
+                            echo "Current directory contents:"
+                            dir
+                            exit /b 1
+                        )
+                    '''
+                    
+                    dir('big_data_lab_second') {
+                        withCredentials([
+                            string(credentialsId: 'redis-password', variable: 'REDIS_PASSWORD'),
+                            string(credentialsId: 'redis-host', variable: 'REDIS_HOST'),
+                            string(credentialsId: 'redis-port', variable: 'REDIS_PORT'),
+                            string(credentialsId: 'redis-db', variable: 'REDIS_DB')
+                        ]) {
+                            bat '''
+                                chcp 65001
+                                echo REDIS_HOST=%REDIS_HOST% >> .env
+                                echo REDIS_PORT=%REDIS_PORT% >> .env
+                                echo REDIS_DB=%REDIS_DB% >> .env
+                                echo REDIS_PASSWORD=%REDIS_PASSWORD% >> .env
+                                docker-compose up -d
+                            '''
                         }
                     }
                 }
@@ -52,12 +76,22 @@ options {
         stage('Wait for App Ready') {
             steps {
                 script {
-                    timeout(time: 60, unit: 'SECONDS') {
-                        sh '''
-                            until curl -s -o /dev/null -w "%{http_code}" http://localhost:8090/ | grep -q 200; do
-                                echo "Waiting for app to be ready..."
-                                sleep 2
-                            done
+                    timeout(time: 120, unit: 'SECONDS') {  // Увеличил время ожидания
+                        bat '''
+                            chcp 65001
+                            set count=0
+                            :loop
+                            curl -s -o nul -w "%%{http_code}" http://localhost:8090/ | findstr "200" >nul
+                            if errorlevel 1 (
+                                set /a count+=1
+                                if !count! gtr 60 (
+                                    echo "App failed to start within timeout"
+                                    exit /b 1
+                                )
+                                echo "Waiting for app to be ready... !count!"
+                                timeout /t 2 /nobreak >nul
+                                goto loop
+                            )
                             echo "App is ready!"
                         '''
                     }
@@ -67,29 +101,35 @@ options {
         
         stage('Run Functional Tests Inside Container') {
             steps {
-                sh '''
-                    container_id=$(docker ps -qf "name=api-container")
-                    if [ -z "$container_id" ]; then
-                        echo "No container running"
-                        exit 1
-                    fi
-                    docker exec $container_id pytest -s tests/test_functional.py
-                '''
+                script {
+                    bat '''
+                        chcp 65001
+                        for /f "tokens=*" %%i in ('docker ps -qf "name=.*api.*"') do set container_id=%%i
+                        if defined container_id (
+                            echo "Running tests in container: !container_id!"
+                            docker exec !container_id! pytest -v tests/test_functional.py
+                        ) else (
+                            echo "No container found"
+                            docker ps -a
+                            exit /b 1
+                        )
+                    '''
+                }
             }
         }
     }
     
     post {
         always {
-            sh '''
+            bat '''
                 chcp 65001
-                docker stop big_data_lab_second-1 || true
-                docker rm big_data_lab_second-1 || true
-                docker stop redis-container || true
-                docker rm redis-container || true
-                docker rmi derelia/big_data_lab_second:latest || true
-                docker rmi redis || true
-                docker logout
+                echo "Cleaning up containers..."
+                docker stop big_data_lab_second_api_1 2>nul || echo "Container big_data_lab_second_api_1 not running"
+                docker stop big_data_lab_second_redis_1 2>nul || echo "Container big_data_lab_second_redis_1 not running"
+                docker rm big_data_lab_second_api_1 2>nul || echo "Container big_data_lab_second_api_1 not found"
+                docker rm big_data_lab_second_redis_1 2>nul || echo "Container big_data_lab_second_redis_1 not found"
+                docker rmi derelia/big_data_lab_second:latest 2>nul || echo "Image not found"
+                docker logout 2>nul || echo "Not logged in"
             '''
             cleanWs()
         }
