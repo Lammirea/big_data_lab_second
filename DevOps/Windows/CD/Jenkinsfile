@@ -10,18 +10,18 @@ pipeline {
 
     options {
         timestamps()
-        skipDefaultCheckout(false)
+        skipDefaultCheckout(false)  // Важно: не пропускать checkout
     }
-
+    
     stages {
-
+        
         stage('Clone github repository') {
             steps {
                 cleanWs()
-                bat 'chcp 65001 && git clone -b develop https://github.com/Lammirea/big_data_lab_second.git'
+                bat 'chcp 65001 && git clone -b develop https://github.com/Lammirea/big_data_lab_second.git  '
             }
         }
-
+        
         stage('Checkout repo dir') {
             steps {
                 bat 'chcp 65001 && cd big_data_lab_second && dir'
@@ -37,27 +37,29 @@ pipeline {
         stage('Create and run docker container') {
             steps {
                 script {
-                    // проверим наличие каталога и docker-compose.yml и соберём/поднимем
+                    // Проверяем, существует ли директория и файл docker-compose.yml
                     bat '''
                         chcp 65001
                         dir
                         if exist "big_data_lab_second" (
-                            pushd big_data_lab_second
+                            echo "Directory big_data_lab_second exists"
+                            cd big_data_lab_second
+                            dir
                             if exist "docker-compose.yml" (
                                 echo "docker-compose.yml found"
                                 docker-compose build
-                                exit /b %ERRORLEVEL%
                             ) else (
                                 echo "ERROR: docker-compose.yml not found"
                                 exit /b 1
                             )
-                            popd
                         ) else (
                             echo "ERROR: Directory big_data_lab_second not found"
+                            echo "Current directory contents:"
                             dir
                             exit /b 1
                         )
                     '''
+                    
                     dir('big_data_lab_second') {
                         withCredentials([
                             string(credentialsId: 'redis-password', variable: 'REDIS_PASSWORD'),
@@ -68,7 +70,7 @@ pipeline {
                         ]) {
                             bat '''
                                 chcp 65001
-                                echo REDIS_HOST=%REDIS_HOST% > .env
+                                echo REDIS_HOST=%REDIS_HOST% >> .env
                                 echo REDIS_PORT=%REDIS_PORT% >> .env
                                 echo REDIS_DB=%REDIS_DB% >> .env
                                 echo REDIS_PASSWORD=%REDIS_PASSWORD% >> .env
@@ -84,65 +86,37 @@ pipeline {
         stage('Wait for App Ready') {
             steps {
                 script {
-                    // timeout wrapper от Jenkins останется, но внутри используем windows bat
-                    timeout(time: 120, unit: 'SECONDS') {
-                        bat '''
-                            chcp 65001
-                            echo Waiting for application to be ready...
-                            pushd big_data_lab_second
-
-                            rem Попробуем ожидать ответ 200 с помощью curl (Windows curl)
-                            rem Используем цикл for /l и ping для паузы (timeout может падать в CI)
-                            set ok=0
-                            for /l %%i in (1,1,60) do (
-                                rem выполняем запрос и проверяем код
-                                curl -s -o nul -w "%%{http_code}" http://localhost:8090/ 2>nul | findstr "200" >nul
-                                if not errorlevel 1 (
-                                    set ok=1
-                                    echo Application is ready!
-                                    goto :afterloop
-                                )
-                                echo Waiting for app to be ready... Attempt %%i/60
-                                rem пауза ~2 секунды
-                                ping -n 3 127.0.0.1 >nul
-                            )
-
-                            :afterloop
-                            if "%ok%"=="1" (
-                                echo App started successfully
-                                popd
-                            ) else (
-                                echo ERROR: Application failed to start within timeout
-                                echo Printing docker-compose logs...
-                                docker-compose logs
-                                popd
-                                exit /b 1
-                            )
-                        '''
-                    }
+                timeout(time: 120, unit: 'SECONDS') {   // increase timeout if needed
+                    // Windows-friendly loop using PowerShell
+                    bat '''
+                    chcp 65001
+                    powershell -NoProfile -Command ^
+                        "$url = 'http://0.0.0.0:8090/';" ^
+                        "Write-Host 'Waiting for ' $url;" ^
+                        "do {" ^
+                        "  Start-Sleep -Seconds 2;" ^
+                        "  try { $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 2; $code = $resp.StatusCode } catch { $code = 0 }" ^
+                        "  Write-Host 'HTTP status:' $code;" ^
+                        "} until ($code -eq 200);" ^
+                        "Write-Host 'App is ready!';"
+                    '''
+                }
                 }
             }
         }
 
+        
         stage('Run Functional Tests Inside Container') {
             steps {
                 script {
                     bat '''
                         chcp 65001
-                        rem Найдём контейнер(ы) с именем содержащим "api" или "web" (подберите фильтр под ваш compose)
-                        set TEST_DONE=0
-                        for /f "tokens=*" %%i in ('docker ps -qf "name=api"') do (
-                            echo Running tests in container %%i
-                            docker exec %%i pytest -v tests/test_functional.py
-                            if errorlevel 1 (
-                                echo Tests failed in container %%i
-                                exit /b 1
-                            ) else (
-                                set TEST_DONE=1
-                            )
-                        )
-                        if "%TEST_DONE%"=="0" (
-                            echo No container found matching name filter "api"
+                        for /f "tokens=*" %%i in ('docker ps -qf "name=.*api.*"') do set container_id=%%i
+                        if defined container_id (
+                            echo "Running tests in container: !container_id!"
+                            docker exec !container_id! pytest -v tests/test_functional.py
+                        ) else (
+                            echo "No container found"
                             docker ps -a
                             exit /b 1
                         )
@@ -151,7 +125,7 @@ pipeline {
             }
         }
     }
-
+    
     post {
         always {
             bat '''
