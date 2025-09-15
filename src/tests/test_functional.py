@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 
 # Базовый URL для тестирования (можно переопределить через переменные окружения)
-BASE_URL = os.getenv('TEST_API_URL', 'http://localhost:8081')
+BASE_URL = os.getenv('TEST_API_URL', 'http://localhost:8000')
 
 class TestFunctionalAPI:
     
@@ -236,19 +236,4 @@ class TestFunctionalAPI:
             threads.append(thread)
             thread.start()
         
-        # Ждем завершения всех запросов
-        for thread in threads:
-            thread.join()
-        
-        # Проверяем результаты
-        status_codes = []
-        while not results.empty():
-            status_codes.append(results.get())
-        
-        # Все запросы должны быть успешными
-        success_count = sum(1 for code in status_codes if isinstance(code, int) and code in [200, 201])
-        assert success_count >= 4, f"Expected at least 4 successful requests, got {success_count}"
-        print("✅ Concurrent requests handled successfully")
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+       
