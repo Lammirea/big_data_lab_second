@@ -36,8 +36,8 @@ pipeline {
                         REM run tests inside official python image; mounts repo into /app
                         docker run --rm -v "%cd%":/app -w /app python:3.11-bullseye bash -lc " \
                         python -m pip install --upgrade pip setuptools wheel && \
-                        pip install -r requirements.txt coverage --root-user-action=ignore && \
-                        coverage run -m pytest -q --maxfail=1 --disable-warnings && \
+                        pip install -r requirements.txt coverage pytest --root-user-action=ignore && \
+                        coverage run -m pytest src/unit_tests -q --maxfail=1 --disable-warnings && \
                         coverage report -m \
                         "
                     '''
