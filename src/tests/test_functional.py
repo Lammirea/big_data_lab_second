@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 
 # Базовый URL для тестирования (можно переопределить через переменные окружения)
-BASE_URL = os.getenv('TEST_API_URL', 'http://localhost:8000')
+BASE_URL = os.getenv('TEST_API_URL', 'http://0.0.0.0:8090')
 
 class TestFunctionalAPI:
     
