@@ -19,9 +19,9 @@ services:
       bash -c "python src/preprocess.py &&
                python src/train.py &&
                python src/predict.py -m RAND_FOREST -t func &&
-               coverage run src/test_preprocess.py &&
-               coverage run src/redis_test.py
-               coverage run -a src/test_train.py &&
+               coverage run src/unit_tests/test_preprocess.py &&
+               coverage run src/unit_tests/redis_test.py
+               coverage run -a src/unit_tests/test_train.py &&
                coverage report -m"
     ports:
       - "8090:8000"
