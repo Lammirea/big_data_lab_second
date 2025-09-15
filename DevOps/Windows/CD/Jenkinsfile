@@ -125,9 +125,9 @@ pipeline {
                 chcp 65001
                 echo "Cleaning up containers..."
                 docker stop big_data_lab_second-web-1 2>nul || echo "Container big_data_lab_second-web-1 not running"
-                docker stop big_data_lab_second-redis-1 2>nul || echo "Container big_data_lab_second-redis-1 not running"
+                docker stop redis_db 2>nul || echo "Container redis_db not running"
                 docker rm big_data_lab_second-web-1 2>nul || echo "Container big_data_lab_second-web-1 not found"
-                docker rm big_data_lab_second-redis-1 2>nul || echo "Container big_data_lab_second-redis-1 not found"
+                docker rm redis_db 2>nul || echo "Container redis_db not found"
                 docker rmi derelia/big_data_lab_second:latest 2>nul || echo "Image not found"
                 docker logout 2>nul || echo "Not logged in"
             '''
