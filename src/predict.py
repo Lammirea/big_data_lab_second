@@ -125,7 +125,7 @@ class Predictor:
             self.log.info(f'{model_path} passed smoke tests')
 
         elif args.tests == "func":
-            tests_path = os.path.join(os.getcwd(), "tests")
+            tests_path = os.path.join(os.getcwd(), "src/unit_tests")
             exp_path = os.path.join(os.getcwd(), "experiments")
             for test in os.listdir(tests_path):
                 with open(os.path.join(tests_path, test)) as f:
