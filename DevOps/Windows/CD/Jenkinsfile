@@ -84,22 +84,12 @@ pipeline {
         stage('Wait for App Ready') {
             steps {
                 script {
-                    timeout(time: 120, unit: 'SECONDS') {  // Увеличил время ожидания
-                        bat '''
-                            chcp 65001
-                            set count=0
-                            :loop
-                            curl -s -o nul -w "%%{http_code}" http://localhost:8090/ | findstr "200" >nul
-                            if errorlevel 1 (
-                                set /a count+=1
-                                if !count! gtr 60 (
-                                    echo "App failed to start within timeout"
-                                    exit /b 1
-                                )
-                                echo "Waiting for app to be ready... !count!"
-                                timeout /t 2 /nobreak >nul
-                                goto loop
-                            )
+                    timeout(time: 60, unit: 'SECONDS') {
+                        sh '''
+                            until curl -s -o /dev/null -w "%{http_code}" http://0.0.0.0:8090/ | grep -q 200; do
+                                echo "Waiting for app to be ready..."
+                                sleep 2
+                            done
                             echo "App is ready!"
                         '''
                     }
