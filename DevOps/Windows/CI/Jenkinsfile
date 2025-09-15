@@ -127,10 +127,10 @@ pipeline {
                 chcp 65001
                 docker stop big_data_lab_second-web-1 || true
                 docker rm big_data_lab_second-web-1 || true
-                docker stop redis-container || true
-                docker rm redis-container || true
+                docker stop big_data_lab_second-redis-1 || true
+                docker rm big_data_lab_second-redis-1 || true
                 docker rmi derelia/big_data_lab_second:latest || true
-                docker rmi redis || true
+                docker rmi redis_db || true
                 docker logout
             '''
             cleanWs()
