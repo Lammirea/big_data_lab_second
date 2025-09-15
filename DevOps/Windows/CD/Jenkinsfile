@@ -65,6 +65,7 @@ pipeline {
                             string(credentialsId: 'redis-password', variable: 'REDIS_PASSWORD'),
                             string(credentialsId: 'redis-host', variable: 'REDIS_HOST'),
                             string(credentialsId: 'redis-port', variable: 'REDIS_PORT'),
+                            string(credentialsId: 'redis-user-password', variable: 'REDIS_USER_PASSWORD'),
                             string(credentialsId: 'redis-db', variable: 'REDIS_DB')
                         ]) {
                             bat '''
@@ -73,6 +74,7 @@ pipeline {
                                 echo REDIS_PORT=%REDIS_PORT% >> .env
                                 echo REDIS_DB=%REDIS_DB% >> .env
                                 echo REDIS_PASSWORD=%REDIS_PASSWORD% >> .env
+                                echo REDIS_USER_PASSWORD=%REDIS_USER_PASSWORD% >> .env
                                 docker-compose up -d
                             '''
                         }
