@@ -125,12 +125,12 @@ pipeline {
         always {
             bat '''
                 chcp 65001
-                docker stop big_data_lab_second-web-1 || true
-                docker rm big_data_lab_second-web-1 || true
-                docker stop big_data_lab_second-redis-1 || true
-                docker rm big_data_lab_second-redis-1 || true
-                docker rmi derelia/big_data_lab_second:latest || true
-                docker rmi redis:latest || true
+                docker stop big_data_lab_second-web-1 || exit /b 0
+                docker rm big_data_lab_second-web-1 || exit /b 0
+                docker stop big_data_lab_second-redis-1 || exit /b 0
+                docker rm big_data_lab_second-redis-1 || exit /b 0
+                docker rmi derelia/big_data_lab_second:latest || exit /b 0
+                docker rmi redis:latest || exit /b 0
                 docker logout
             '''
             cleanWs()
