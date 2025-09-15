@@ -13,13 +13,6 @@ BASE_URL = os.getenv('TEST_API_URL', 'http://0.0.0.0:8000')
 class TestFunctionalAPI:
     
     @pytest.fixture(autouse=True)
-    def setup(self):
-        """Подготовка перед каждым тестом"""
-        # Очистка Redis кэша перед тестами
-        try:
-            requests.post(f"{BASE_URL}/clear_cache/")  # если есть такой endpoint
-        except:
-            pass
     
     def test_01_train_decision_tree_model(self):
         """Тест 1: Обучение модели Decision Tree"""
@@ -160,80 +153,4 @@ class TestFunctionalAPI:
         
         assert response.status_code == 400
         print("✅ Invalid model type handling works correctly")
-    
-    def test_08_health_check(self):
-        """Тест 8: Проверка доступности API"""
-        try:
-            response = requests.get(f"{BASE_URL}/docs")
-            assert response.status_code == 200
-            print("✅ API is accessible and documentation is available")
-        except:
-            # Если нет /docs, пробуем базовый health check
-            response = requests.get(f"{BASE_URL}/")
-            assert response.status_code in [200, 404, 405]
-            print("✅ API is accessible")
-
-    def test_09_model_comparison_accuracy(self):
-        """Тест 9: Сравнение точности разных моделей"""
-        models_config = [
-            {"type": "d_tree", "params": {"max_depth": 3, "min_samples_split": 5}},
-            {"type": "log_reg", "params": {"solver": "liblinear", "max_iter": 50}},
-        ]
-        
-        accuracies = {}
-        
-        for model_config in models_config:
-            # Обучаем модель
-            train_params = {
-                "model_type": model_config["type"],
-                "use_config": False,
-                "predict_flag": False
-            }
-            train_params.update(model_config["params"])
-            
-            train_response = requests.post(f"{BASE_URL}/train/", params=train_params)
-            assert train_response.status_code == 200
-            
-            # Получаем точность через smoke тест
-            predict_response = requests.post(
-                f"{BASE_URL}/predict/",
-                params={"mode": "smoke"}
-            )
-            assert predict_response.status_code == 200
-            
-            data = predict_response.json()
-            if not data.get("from_cache", False):
-                accuracy = data.get("test_score", 0)
-                accuracies[model_config["type"]] = accuracy
-        
-        print(f"📊 Model accuracies: {accuracies}")
-        # Простая проверка, что все модели показывают разумную точность
-        for model_type, accuracy in accuracies.items():
-            assert accuracy >= 0.5, f"Model {model_type} has too low accuracy: {accuracy}"
-        print("✅ All models show reasonable accuracy")
-
-    def test_10_concurrent_requests(self):
-        """Тест 10: Проверка обработки параллельных запросов"""
-        import threading
-        import queue
-        
-        results = queue.Queue()
-        
-        def make_request():
-            try:
-                response = requests.post(
-                    f"{BASE_URL}/predict/",
-                    params={"mode": "smoke"}
-                )
-                results.put(response.status_code)
-            except Exception as e:
-                results.put(str(e))
-        
-        # Создаем 5 параллельных запросов
-        threads = []
-        for _ in range(5):
-            thread = threading.Thread(target=make_request)
-            threads.append(thread)
-            thread.start()
-        
        

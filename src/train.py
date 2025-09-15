@@ -113,7 +113,7 @@ class MultiModel:
         
         self.log.info(f"MultiModel is ready. Models path: {self.project_path}")
 
-    def log_reg(self, use_config: bool, solver="lbfgs", max_iter=100, predict=False):
+    def log_reg(self, use_config: bool, solver="lbfgs", max_iter=100, predict=False, save=True):
         if use_config:
             solver = self.config["LOG_REG"].get("solver", solver)
             max_iter = self.config.getint("LOG_REG", "max_iter", fallback=max_iter)
@@ -123,9 +123,9 @@ class MultiModel:
             y_pred = classifier.predict(self.X_test_scaled)
             print(accuracy_score(self.y_test, y_pred))
         params = {'solver': solver, 'max_iter': str(max_iter), 'path': self.log_reg_path}
-        return self.save_model(classifier, self.log_reg_path, "LOG_REG", params)
+        return self.save_model(classifier, self.log_reg_path, "LOG_REG", params, save)
 
-    def rand_forest(self, use_config: bool, n_estimators=100, criterion="entropy", predict=False):
+    def rand_forest(self, use_config: bool, n_estimators=100, criterion="entropy", predict=False, save=True):
         if use_config:
             n_estimators = self.config.getint("RAND_FOREST", "n_estimators", fallback=n_estimators)
             criterion = self.config["RAND_FOREST"].get("criterion", criterion)
@@ -135,18 +135,18 @@ class MultiModel:
             y_pred = classifier.predict(self.X_test_scaled)
             print(accuracy_score(self.y_test, y_pred))
         params = {'n_estimators': str(n_estimators), 'criterion': criterion, 'path': self.rand_forest_path}
-        return self.save_model(classifier, self.rand_forest_path, "RAND_FOREST", params)
+        return self.save_model(classifier, self.rand_forest_path, "RAND_FOREST", params, save)
 
-    def gnb(self, predict=False):
+    def gnb(self, predict=False, save=True):
         classifier = GaussianNB()
         classifier.fit(self.X_train_smote, self.y_train_smote)
         if predict:
             y_pred = classifier.predict(self.X_test_scaled)
             print(accuracy_score(self.y_test, y_pred))
         params = {'path': self.gnb_path}
-        return self.save_model(classifier, self.gnb_path, "GNB", params)
+        return self.save_model(classifier, self.gnb_path, "GNB", params, save)
 
-    def d_tree(self, use_config: bool, max_depth=10, min_samples_split=2, predict=False):
+    def d_tree(self, use_config: bool, max_depth=10, min_samples_split=2, predict=False, save=True):
         if use_config:
             max_depth = self.config.getint("DECISION_TREE", "max_depth", fallback=max_depth)
             min_samples_split = self.config.getint("DECISION_TREE", "min_samples_split", fallback=min_samples_split)
@@ -156,32 +156,36 @@ class MultiModel:
             y_pred = classifier.predict(self.X_test_scaled)
             print(accuracy_score(self.y_test, y_pred))
         params = {'max_depth': str(max_depth), 'min_samples_split': str(min_samples_split), 'path': self.d_tree_path}
-        return self.save_model(classifier, self.d_tree_path, "DECISION_TREE", params)
+        return self.save_model(classifier, self.d_tree_path, "DECISION_TREE", params, save)
 
-    def save_model(self, classifier, path, section, params, save = True):
+    def save_model(self, classifier, path, section, params, save=True):
         # Сохранение модели и обновление конфигурации
-        self.config[section] = params
-        # Пишем config.ini в тот путь, откуда он был загружен (self.config_path)
-        try:
-            with open(self.config_path, 'w') as configfile:
-                self.config.write(configfile)
-        except Exception as e:
-            # логируем, но не ломаем процесс — возможно тестовое окружение не разрешает запись
-            self.log.warning(f"Не удалось перезаписать config.ini в {self.config_path}: {e}")
+        if save:
+            self.config[section] = params
+            # Пишем config.ini в тот путь, откуда он был загружен (self.config_path)
+            try:
+                with open(self.config_path, 'w') as configfile:
+                    self.config.write(configfile)
+            except Exception as e:
+                # логируем, но не ломаем процесс — возможно тестовое окружение не разрешает запись
+                self.log.warning(f"Не удалось перезаписать config.ini в {self.config_path}: {e}")
 
-        # Пытаемся записать модель, при ошибке используем временную папку
-        try:
-            with open(path, 'wb') as f:
-                pickle.dump(classifier, f)
-        except PermissionError:
-            fallback = os.path.join(tempfile.gettempdir(), os.path.basename(path))
-            with open(fallback, 'wb') as f:
-                pickle.dump(classifier, f)
-            self.log.warning(f"Не получилось записать модель в {path}, сохранили в {fallback}")
-            path = fallback
+            # Пытаемся записать модель, при ошибке используем временную папку
+            try:
+                with open(path, 'wb') as f:
+                    pickle.dump(classifier, f)
+            except PermissionError:
+                fallback = os.path.join(tempfile.gettempdir(), os.path.basename(path))
+                with open(fallback, 'wb') as f:
+                    pickle.dump(classifier, f)
+                self.log.warning(f"Не получилось записать модель в {path}, сохранили в {fallback}")
+                path = fallback
 
-        self.log.info(f'{path} is saved')
-        return os.path.isfile(path)
+            self.log.info(f'{path} is saved')
+            return os.path.isfile(path)
+        else:
+            self.log.info(f'Model training completed but not saved (save=False)')
+            return True  # Возвращаем True, так как обучение успешно, просто не сохраняем
     
     def predict(self, model_name, test_type):
         """

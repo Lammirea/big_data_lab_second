@@ -20,8 +20,9 @@ redis_client = redis.Redis(
 
 @app.post("/train/")
 async def train_model(
-    model_type: str = "d_tree",  # Добавлен выбор типа модели
+    model_type: str = "d_tree",
     use_config: bool = True,
+    save_model: bool = True,  # Добавлен параметр для управления сохранением
     # Параметры для Logistic Regression
     solver: str = "lbfgs",
     max_iter: int = 100,
@@ -43,28 +44,35 @@ async def train_model(
                 use_config=use_config, 
                 solver=solver, 
                 max_iter=max_iter, 
-                predict=predict_flag
+                predict=predict_flag,
+                save=save_model  # Передаем параметр сохранения
             )
         elif model_type == "rand_forest":
             result = multi_model.rand_forest(
                 use_config=use_config, 
                 n_estimators=n_estimators, 
                 criterion=criterion, 
-                predict=predict_flag
+                predict=predict_flag,
+                save=save_model  # Передаем параметр сохранения
             )
         elif model_type == "d_tree":
             result = multi_model.d_tree(
                 use_config=use_config, 
                 max_depth=max_depth, 
                 min_samples_split=min_samples_split, 
-                predict=predict_flag
+                predict=predict_flag,
+                save=save_model  # Передаем параметр сохранения
             )
         elif model_type == "gnb":
-            result = multi_model.gnb(predict=predict_flag)
+            result = multi_model.gnb(predict=predict_flag, save=save_model)
         else:
             raise HTTPException(status_code=400, detail=f"Неизвестный тип модели: {model_type}")
         
-        return {"model_trained": result, "model_type": model_type}
+        return {
+            "model_trained": result, 
+            "model_type": model_type,
+            "model_saved": save_model
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
