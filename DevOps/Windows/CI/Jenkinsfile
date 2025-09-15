@@ -130,7 +130,7 @@ pipeline {
                 docker stop big_data_lab_second-redis-1 || true
                 docker rm big_data_lab_second-redis-1 || true
                 docker rmi derelia/big_data_lab_second:latest || true
-                docker rmi redis_db || true
+                docker rmi redis:latest || true
                 docker logout
             '''
             cleanWs()
