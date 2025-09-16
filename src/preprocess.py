@@ -5,7 +5,7 @@ import numpy as np
 import sys
 import traceback
 
-from logger import Logger
+from src.logger import Logger
 
 SHOW_LOG = True
 

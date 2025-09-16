@@ -14,8 +14,8 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from imblearn.over_sampling import SMOTE
 
-from preprocess import DataMaker
-from logger import Logger
+from src.preprocess import DataMaker
+from src.logger import Logger
 import sys
 import tempfile
 
