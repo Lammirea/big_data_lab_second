@@ -71,7 +71,7 @@ pipeline {
                         bat '''
                         chcp 65001
                         powershell -NoProfile -Command ^
-                        "$url = 'http://127.0.0.1:8000/openapi.json';" ^
+                        "$url = 'http://127.0.0.1:8090/openapi.json';" ^
                         "Write-Host 'Waiting for ' $url;" ^
                         "$code = 0;" ^
                         "do {" ^
