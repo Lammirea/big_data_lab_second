@@ -6,6 +6,7 @@ import json
 import redis
 from train import MultiModel
 from predict import Predictor
+import logger
 
 app = FastAPI()
 
@@ -73,21 +74,41 @@ async def train_model(
             "model_type": model_type,
             "model_saved": save_model
         }
+    except HTTPException:
+        # Повторно пробрасываем HTTPException чтобы сохранить его статус-код (400, 422 и т.д.)
+        raise
     except Exception as e:
+        # Для всех остальных исключений возвращаем 500
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/predict/")
 async def predict_model(mode: str = "smoke", file: UploadFile = None):
     cache_key = f"predict:{mode}"
-    
-    # Попытаться получить из Redis
-    if redis_client.exists(cache_key):
-        result = redis_client.get(cache_key)
-        return {"from_cache": True, **json.loads(result)}
-    
+
+    # Безопасная проверка кэша — при ошибке просто считаем cache miss
+    try:
+        try:
+            if redis_client is not None and redis_client.exists(cache_key):
+                raw = redis_client.get(cache_key)
+                if raw:
+                    # если в кэше лежит JSON-строка — распарсим и вернём ответ
+                    try:
+                        parsed = json.loads(raw)
+                    except Exception:
+                        # если парсинг не удался — просто пропускаем кэш
+                        logger.warning("Не удалось распарсить данные из Redis, игнорируем кэш")
+                        parsed = None
+                    if parsed is not None:
+                        return {"from_cache": True, **parsed}
+        except redis.exceptions.RedisError as re:
+            logger.warning(f"Redis error while checking cache (treat as cache miss): {re}")
+    except Exception as e:
+        # Очень внешняя защита — если что-то странное, логируем и продолжаем
+        logger.warning(f"Unexpected error during Redis cache check: {e}")
+
     try:
         predictor = Predictor()
-        
+
         if mode == "upload":
             if file is None:
                 raise HTTPException(status_code=400, detail="Файл не предоставлен для режима 'upload'")
@@ -97,8 +118,22 @@ async def predict_model(mode: str = "smoke", file: UploadFile = None):
             result = predictor.predict_smoke()
         else:
             raise HTTPException(status_code=400, detail="Неверный режим. Используйте 'smoke' или 'upload'")
-        
+
+        # (Опционально) попытка записать результат в кэш — снова в try/except,
+        # чтобы проблемы с Redis не ломали ответ.
+        try:
+            try:
+                if redis_client is not None:
+                    redis_client.set(cache_key, json.dumps(result))
+                    # при желании можно установить ttl: redis_client.setex(cache_key, ttl_seconds, json.dumps(result))
+            except redis.exceptions.RedisError as re:
+                logger.warning(f"Redis error while storing cache (ignored): {re}")
+        except Exception as e:
+            logger.warning(f"Unexpected error while writing to Redis cache: {e}")
+
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

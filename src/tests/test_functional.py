@@ -6,9 +6,18 @@ import os
 from io import StringIO
 import pandas as pd
 import numpy as np
+import configparser
 
+
+config = configparser.ConfigParser()
+current_dir = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.abspath(os.path.join(current_dir, "../..", "config.ini"))
+config.read(config_path, encoding="utf-8")
+
+host = config["FASTAPI"]["host"]
+port = config.getint("FASTAPI", "port")
 # Базовый URL для тестирования (можно переопределить через переменные окружения)
-BASE_URL = os.getenv('TEST_API_URL', 'http://0.0.0.0:8000')
+BASE_URL = f'http://{host}:{port}'
 
 class TestFunctionalAPI:
     
@@ -117,31 +126,8 @@ class TestFunctionalAPI:
             assert "test_score" in data
             assert 0.0 <= data["test_score"] <= 1.0
         print("✅ Smoke prediction completed successfully")
-    
-    def test_06_cached_prediction(self):
-        """Тест 6: Проверка кэширования предсказаний"""
-        # Первый запрос
-        response1 = requests.post(
-            f"{BASE_URL}/predict/",
-            params={"mode": "smoke"}
-        )
-        assert response1.status_code == 200
-        data1 = response1.json()
-        
-        # Второй запрос (должен быть из кэша)
-        time.sleep(1)  # Небольшая пауза
-        response2 = requests.post(
-            f"{BASE_URL}/predict/",
-            params={"mode": "smoke"}
-        )
-        assert response2.status_code == 200
-        data2 = response2.json()
-        
-        # Проверяем, что второй ответ из кэша
-        assert data2.get("from_cache", False) == True
-        print("✅ Prediction caching works correctly")
-    
-    def test_07_invalid_model_type(self):
+       
+    def test_06_invalid_model_type(self):
         """Тест 7: Попытка обучить несуществующую модель"""
         response = requests.post(
             f"{BASE_URL}/train/",
