@@ -4,8 +4,8 @@ import os
 import configparser
 import json
 import redis
-from train import MultiModel
-from predict import Predictor
+from src.train import MultiModel
+from src.predict import Predictor
 import logger
 
 app = FastAPI()

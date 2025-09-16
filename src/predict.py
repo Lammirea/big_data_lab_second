@@ -16,7 +16,7 @@ import yaml
 import numpy as np
 import warnings
 import redis
-from preprocess import DataMaker
+from src.preprocess import DataMaker
 
 warnings.filterwarnings("ignore")
 
