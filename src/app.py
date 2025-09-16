@@ -6,9 +6,13 @@ import json
 import redis
 from src.train import MultiModel
 from src.predict import Predictor
-import logger
+from src.logger import Logger  # <-- Импорт кастомного логгера
 
 app = FastAPI()
+
+# Инициализация кастомного логгера
+custom_logger_instance = Logger(show=True)  # show=True — вывод в консоль
+logger = custom_logger_instance.get_logger("AppLogger")  # Получаем логгер
 
 # Инициализация Redis
 redis_client = redis.Redis(
@@ -23,7 +27,7 @@ redis_client = redis.Redis(
 async def train_model(
     model_type: str = "d_tree",
     use_config: bool = True,
-    save_model: bool = True,  # Добавлен параметр для управления сохранением
+    save_model: bool = True,
     # Параметры для Logistic Regression
     solver: str = "lbfgs",
     max_iter: int = 100,
@@ -36,17 +40,15 @@ async def train_model(
     predict_flag: bool = False
 ):
     try:
-        # Используем MultiModel из train.py
         multi_model = MultiModel()
         
-        # Выбор модели в зависимости от параметра
         if model_type == "log_reg":
             result = multi_model.log_reg(
                 use_config=use_config, 
                 solver=solver, 
                 max_iter=max_iter, 
                 predict=predict_flag,
-                save=save_model  # Передаем параметр сохранения
+                save=save_model
             )
         elif model_type == "rand_forest":
             result = multi_model.rand_forest(
@@ -54,7 +56,7 @@ async def train_model(
                 n_estimators=n_estimators, 
                 criterion=criterion, 
                 predict=predict_flag,
-                save=save_model  # Передаем параметр сохранения
+                save=save_model
             )
         elif model_type == "d_tree":
             result = multi_model.d_tree(
@@ -62,7 +64,7 @@ async def train_model(
                 max_depth=max_depth, 
                 min_samples_split=min_samples_split, 
                 predict=predict_flag,
-                save=save_model  # Передаем параметр сохранения
+                save=save_model
             )
         elif model_type == "gnb":
             result = multi_model.gnb(predict=predict_flag, save=save_model)
@@ -75,35 +77,29 @@ async def train_model(
             "model_saved": save_model
         }
     except HTTPException:
-        # Повторно пробрасываем HTTPException чтобы сохранить его статус-код (400, 422 и т.д.)
         raise
     except Exception as e:
-        # Для всех остальных исключений возвращаем 500
+        logger.error(f"Ошибка при обучении модели: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/predict/")
 async def predict_model(mode: str = "smoke", file: UploadFile = None):
     cache_key = f"predict:{mode}"
 
-    # Безопасная проверка кэша — при ошибке просто считаем cache miss
     try:
-        try:
-            if redis_client is not None and redis_client.exists(cache_key):
-                raw = redis_client.get(cache_key)
-                if raw:
-                    # если в кэше лежит JSON-строка — распарсим и вернём ответ
-                    try:
-                        parsed = json.loads(raw)
-                    except Exception:
-                        # если парсинг не удался — просто пропускаем кэш
-                        logger.warning("Не удалось распарсить данные из Redis, игнорируем кэш")
-                        parsed = None
-                    if parsed is not None:
-                        return {"from_cache": True, **parsed}
-        except redis.exceptions.RedisError as re:
-            logger.warning(f"Redis error while checking cache (treat as cache miss): {re}")
+        if redis_client is not None and redis_client.exists(cache_key):
+            raw = redis_client.get(cache_key)
+            if raw:
+                try:
+                    parsed = json.loads(raw)
+                except Exception:
+                    logger.warning("Не удалось распарсить данные из Redis, игнорируем кэш")
+                    parsed = None
+                if parsed is not None:
+                    return {"from_cache": True, **parsed}
+    except redis.exceptions.RedisError as re:
+        logger.warning(f"Redis error while checking cache (treat as cache miss): {re}")
     except Exception as e:
-        # Очень внешняя защита — если что-то странное, логируем и продолжаем
         logger.warning(f"Unexpected error during Redis cache check: {e}")
 
     try:
@@ -119,15 +115,11 @@ async def predict_model(mode: str = "smoke", file: UploadFile = None):
         else:
             raise HTTPException(status_code=400, detail="Неверный режим. Используйте 'smoke' или 'upload'")
 
-        # (Опционально) попытка записать результат в кэш — снова в try/except,
-        # чтобы проблемы с Redis не ломали ответ.
         try:
-            try:
-                if redis_client is not None:
-                    redis_client.set(cache_key, json.dumps(result))
-                    # при желании можно установить ttl: redis_client.setex(cache_key, ttl_seconds, json.dumps(result))
-            except redis.exceptions.RedisError as re:
-                logger.warning(f"Redis error while storing cache (ignored): {re}")
+            if redis_client is not None:
+                redis_client.set(cache_key, json.dumps(result))
+        except redis.exceptions.RedisError as re:
+            logger.warning(f"Redis error while storing cache (ignored): {re}")
         except Exception as e:
             logger.warning(f"Unexpected error while writing to Redis cache: {e}")
 
@@ -135,6 +127,7 @@ async def predict_model(mode: str = "smoke", file: UploadFile = None):
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Ошибка при предсказании: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
