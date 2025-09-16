@@ -113,7 +113,7 @@ pipeline {
                         for /f "tokens=*" %%i in ('docker ps -qf "name=.*api.*"') do set container_id=%%i
                         if defined container_id (
                             echo "Running tests in container: !container_id!"
-                            docker exec !container_id! pytest -v tests/test_functional.py
+                            docker exec !container_id! python -v src/app.py pytest -v src/tests/test_functional.py
                         ) else (
                             echo "No container found"
                             docker ps -a
