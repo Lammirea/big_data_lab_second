@@ -87,7 +87,6 @@ pipeline {
             steps {
                 script {
                 timeout(time: 120, unit: 'SECONDS') {   // increase timeout if needed
-                    // Windows-friendly loop using PowerShell
                     bat '''
                     chcp 65001
                     powershell -NoProfile -Command ^
