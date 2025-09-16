@@ -16,9 +16,9 @@ services:
     depends_on:
       - redis
     command: >
-      bash -c "uvicorn src.app:app --host 127.0.0.1 --port 8000"
+      bash -c "uvicorn src.app:app --host 127.0.0.1 --port 8090"
     ports:
-      - "8090:8000"
+      - "8090:8090"
     environment:
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
