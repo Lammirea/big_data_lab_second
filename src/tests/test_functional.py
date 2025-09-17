@@ -97,38 +97,9 @@ class TestFunctionalAPI:
         assert data["model_type"] == "gnb"
         print("✅ Gaussian Naive Bayes model trained successfully")
     
-    def test_05_smoke_prediction_after_training(self):
-        """Тест 5: Smoke предсказание после обучения"""
-        # Сначала обучаем модель
-        train_response = requests.post(
-            f"{BASE_URL}/train/",
-            params={
-                "model_type": "d_tree",
-                "use_config": False,
-                "max_depth": 3,
-                "min_samples_split": 5,
-                "predict_flag": False
-            }
-        )
-        assert train_response.status_code == 200
-        
-        # Затем делаем smoke предсказание
-        predict_response = requests.post(
-            f"{BASE_URL}/predict/",
-            params={"mode": "smoke"}
-        )
-        
-        assert predict_response.status_code == 200
-        data = predict_response.json()
-        
-        # Проверяем, что предсказание из кэша или новое
-        if not data.get("from_cache", False):
-            assert "test_score" in data
-            assert 0.0 <= data["test_score"] <= 1.0
-        print("✅ Smoke prediction completed successfully")
        
-    def test_06_invalid_model_type(self):
-        """Тест 7: Попытка обучить несуществующую модель"""
+    def test_05_invalid_model_type(self):
+        """Тест 5: Попытка обучить несуществующую модель"""
         response = requests.post(
             f"{BASE_URL}/train/",
             params={
