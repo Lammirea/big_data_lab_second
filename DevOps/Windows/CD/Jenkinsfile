@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    triggers {
+        cron('H 9 * * 1') 
+    }
+
     environment {
         DOCKERHUB_CREDS = credentials('lab_big_data_two')
         LC_ALL = "en_US.UTF-8"
@@ -55,7 +59,7 @@ pipeline {
                         echo REDIS_PASSWORD=%REDIS_PASSWORD% >> .env
 
                         REM -- build image and bring up services
-                        docker-compose pull derelia/big_data_lab_second:latest"
+                        docker-compose pull derelia/big_data_lab_second:latest
                         docker-compose build
                         docker-compose up -d
                         '''
@@ -96,10 +100,10 @@ pipeline {
                 docker-compose down -v --remove-orphans || echo "docker-compose down failed (maybe not running)"
                 docker rmi derelia/big_data_lab_second:latest 2>nul || echo "Image derelia/big_data_lab_second:latest not found"
                 '''
-                }
-                bat '''chcp 65001
-                docker logout 2>nul || echo "Not logged in"
-                '''
+            }
+            bat '''chcp 65001
+            docker logout 2>nul || echo "Not logged in"
+            '''
             cleanWs()
         }
         aborted {
