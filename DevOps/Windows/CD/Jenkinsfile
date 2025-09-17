@@ -55,7 +55,7 @@ pipeline {
                         echo REDIS_PASSWORD=%REDIS_PASSWORD% >> .env
 
                         REM -- build image and bring up services
-                        docker-compose pull || echo "no remote image"
+                        docker-compose pull derelia/big_data_lab_second:latest"
                         docker-compose build
                         docker-compose up -d
                         '''
@@ -74,7 +74,7 @@ pipeline {
                         
                         do {
                             try {
-                                $response = Invoke-WebRequest -Uri "http://0.0.0.0:8090/docs#/default" -UseBasicParsing -Method GET -TimeoutSec 5
+                                $response = Invoke-WebRequest -Uri "http://0.0.0.0:8090" -UseBasicParsing -Method GET -TimeoutSec 5
                                 if ($response.StatusCode -eq 200) {
                                     Write-Host "App is ready!"
                                     break
