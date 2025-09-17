@@ -22,7 +22,7 @@ services:
     environment:
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
-      REDIS_PASSWORD: ${REDIS_USER_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: ${REDIS_DB}
     image: derelia/big_data_lab_second:latest
 
