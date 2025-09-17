@@ -21,7 +21,7 @@ BASE_URL = f'http://{host}:{port}'
 
 class TestFunctionalAPI:
     
-    # @pytest.fixture(autouse=True)
+    #@pytest.fixture(autouse=True)
     
     def test_01_train_decision_tree_model(self):
         """Тест 1: Обучение модели Decision Tree"""
