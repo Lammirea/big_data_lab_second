@@ -68,19 +68,26 @@ pipeline {
             steps {
                 script {
                     timeout(time: 180, unit: 'SECONDS') {
-                        bat '''
-                        chcp 65001
-                        powershell -NoProfile -Command ^
-                        "$url = 'http://0.0.0.0:8090';" ^
-                        "Write-Host 'Waiting for ' $url;" ^
-                        "$code = 0;" ^
-                        "do {" ^
-                        "  Start-Sleep -Seconds 2;" ^
-                        "  try { $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 2; $code = $resp.StatusCode } catch { $code = 0 }" ^
-                        "  Write-Host 'HTTP status:' $code;" ^
-                        "} until ($code -eq 200);" ^
-                        "Write-Host 'App is ready!';"
-                        '''
+                    powershell '''
+                        $OutputEncoding = New-Object -typename System.Text.UTF8Encoding
+                        [Console]::OutputEncoding = New-Object -typename System.Text.UTF8Encoding
+                        
+                        do {
+                            try {
+                                $response = Invoke-WebRequest -Uri "http://0.0.0.0:8090/docs#/default" -UseBasicParsing -Method GET -TimeoutSec 5
+                                if ($response.StatusCode -eq 200) {
+                                    Write-Host "App is ready!"
+                                    break
+                                } else {
+                                    Write-Host "Received status code: $($response.StatusCode)"
+                                }
+                            } catch {
+                                Write-Host "App not ready yet, retrying..."
+                            }
+                            Write-Host "Waiting for app to be ready..."
+                            Start-Sleep -Seconds 2
+                        } while ($true)
+                    '''
                     }
                 }
             }
