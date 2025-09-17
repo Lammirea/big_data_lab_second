@@ -71,7 +71,7 @@ pipeline {
                         bat '''
                         chcp 65001
                         powershell -NoProfile -Command ^
-                        "$url = 'http://127.0.0.1:8090';" ^
+                        "$url = 'http://0.0.0.0:8090';" ^
                         "Write-Host 'Waiting for ' $url;" ^
                         "$code = 0;" ^
                         "do {" ^
