@@ -123,7 +123,7 @@ async def predict_model(mode: str = "smoke", file: UploadFile = None):
             file_contents = await file.read()
             result = predictor.predict_upload(file_contents)
         elif mode == "smoke":
-            result = predictor.predict_smoke()
+            result = predictor.predict()
         else:
             raise HTTPException(status_code=400, detail="Неверный режим. Используйте 'smoke' или 'upload'")
 
