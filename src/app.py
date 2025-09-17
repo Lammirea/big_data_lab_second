@@ -6,7 +6,8 @@ import json
 import redis
 from src.train import MultiModel
 from src.predict import Predictor
-from src.logger import Logger  # <-- Импорт кастомного логгера
+from fastapi.encoders import jsonable_encoder
+from src.logger import Logger
 
 app = FastAPI()
 
@@ -15,13 +16,23 @@ custom_logger_instance = Logger(show=True)  # show=True — вывод в кон
 logger = custom_logger_instance.get_logger("AppLogger")  # Получаем логгер
 
 # Инициализация Redis
-redis_client = redis.Redis(
-    host=os.getenv('REDIS_HOST', 'localhost'),
-    port=int(os.getenv('REDIS_PORT', 6379)),
-    password=os.getenv('REDIS_PASSWORD'),
-    db=int(os.getenv('REDIS_DB', 0)),
-    decode_responses=True
-)
+def create_redis_client():
+    try:
+        rc = redis.Redis(
+            host=os.getenv('REDIS_HOST', 'localhost'),
+            port=int(os.getenv('REDIS_PORT', 6379)),
+            password=os.getenv('REDIS_PASSWORD'),
+            db=int(os.getenv('REDIS_DB', 0)),
+            decode_responses=True
+        )
+        # check connection/auth
+        rc.ping()
+        return rc
+    except Exception as e:
+        logger.warning(f"Redis not available at startup, continuing without cache: {e}")
+        return None
+
+redis_client = create_redis_client()
 
 @app.post("/train/")
 async def train_model(
@@ -86,6 +97,7 @@ async def train_model(
 async def predict_model(mode: str = "smoke", file: UploadFile = None):
     cache_key = f"predict:{mode}"
 
+    # try read from cache (keeps your existing robust catches)
     try:
         if redis_client is not None and redis_client.exists(cache_key):
             raw = redis_client.get(cache_key)
@@ -115,19 +127,23 @@ async def predict_model(mode: str = "smoke", file: UploadFile = None):
         else:
             raise HTTPException(status_code=400, detail="Неверный режим. Используйте 'smoke' или 'upload'")
 
+        # make JSON-serializable
+        safe_result = jsonable_encoder(result)
+
+        # try save to redis (best-effort)
         try:
             if redis_client is not None:
-                redis_client.set(cache_key, json.dumps(result))
+                redis_client.set(cache_key, json.dumps(safe_result))
         except redis.exceptions.RedisError as re:
             logger.warning(f"Redis error while storing cache (ignored): {re}")
         except Exception as e:
             logger.warning(f"Unexpected error while writing to Redis cache: {e}")
 
-        return result
+        return safe_result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Ошибка при предсказании: {e}")
+        logger.error(f"Ошибка при предсказании: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
